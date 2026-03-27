@@ -1,5 +1,6 @@
 package tokens
 
+// Enum that holds all Token types
 type TokenType int
 
 const (
@@ -12,14 +13,11 @@ const (
 	FLOAT_LITERAL
 	STRING_LITERAL
 	CHAR_LITERAL
-	NIL_LITERAL
+	NIL_LITERAL // **Reserved literal**
 	// 3. Keywords
 	LET
 	IF
 	ELSE
-	DO
-	WHILE
-	FOR
 	LOOP
 	IN
 	BREAK
@@ -45,7 +43,6 @@ const (
 	CHAR
 	STRING
 	BOOL
-	VOID
 	STRUCT
 	ENUM
 	UNION
@@ -80,12 +77,12 @@ const (
 	LEFT_SHIFT
 	RIGHT_SHIFT
 	// 9. Delimiters / Punctuation
-	LEFT_PAREN
-	RIGHT_PAREN
-	LEFT_BRACE
-	RIGHT_BRACE
-	LEFT_BRACKET
-	RIGHT_BRACKET
+	OPEN_PAREN
+	CLOSE_PAREN
+	OPEN_BRACE
+	CLOSE_BRACE
+	OPEN_BRACKET
+	CLOSE_BRACKET
 	COMMA
 	DOT
 	SEMICOLON
@@ -95,8 +92,9 @@ const (
 	ARROW
 )
 
+// Structure that holds individual token data
 type Token struct {
-	Type TokenType
-	Lexeme     string
-	Line       uint
+	Type   TokenType
+	Lexeme string
+	Line   uint
 }
