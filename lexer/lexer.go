@@ -7,8 +7,40 @@ import (
 
 // Keywords map
 var keywords = map[string]tokens.TokenType{
-	"let": tokens.LET,
-	"if":  tokens.IF,
+	// Keywords
+	"let":      tokens.LET,
+	"if":       tokens.IF,
+	"else":     tokens.ELSE,
+	"loop":     tokens.LOOP,
+	"in":       tokens.IN,
+	"break":    tokens.BREAK,
+	"continue": tokens.CONTINUE,
+	"return":   tokens.RETURN,
+	"fn":       tokens.FN,
+	"static":   tokens.STATIC,
+	"const":    tokens.CONST,
+	"match":    tokens.MATCH,
+	"true":     tokens.TRUE,
+	"false":    tokens.FALSE,
+	// Type keywords
+	"i8":     tokens.I8,
+	"i16":    tokens.I16,
+	"i32":    tokens.I32,
+	"i64":    tokens.I64,
+	"u8":     tokens.U8,
+	"u16":    tokens.U16,
+	"u32":    tokens.U32,
+	"u64":    tokens.U64,
+	"f32":    tokens.F32,
+	"f64":    tokens.F64,
+	"char":   tokens.CHAR,
+	"string": tokens.STRING,
+	"bool":   tokens.BOOL,
+	"struct": tokens.STRUCT,
+	"enum":   tokens.ENUM,
+	"union":  tokens.UNION,
+	// Special (Reserved literal)
+	"NIL": tokens.NIL_LITERAL,
 }
 
 // Scanner struct
@@ -20,7 +52,7 @@ type Scanner struct {
 }
 
 // Initialize the scanner
-func initScanner(source string) *Scanner {
+func InitScanner(source string) *Scanner {
 	return &Scanner{
 		source:  source,
 		start:   0,
@@ -169,7 +201,7 @@ func (s *Scanner) isCharLiteral() tokens.Token {
 // Helper function to check if it is a string literal (Inside double quotes)
 func (s *Scanner) isStringLiteral() tokens.Token {
 	// Loop continues until file ends or double quote found
-	for s.peek() != '"' || !s.isAtEnd() {
+	for s.peek() != '"' && !s.isAtEnd() {
 		// Consumes the newline and increases line count
 		if s.peek() == '\n' {
 			s.line += 1
@@ -192,7 +224,7 @@ func (s *Scanner) isStringLiteral() tokens.Token {
 	}
 	// Throws error if string does not end
 	if s.isAtEnd() {
-		return s.errorToken("Unterminated string")
+		return s.errorToken("Unterminated string.")
 	}
 	// Consume the closing double quote and return the string as a token
 	s.advance()
@@ -226,7 +258,7 @@ func (s *Scanner) isNumberLiteral() tokens.Token {
 	}
 }
 
-// Function to check if it is an identifier (checks keywords as well)
+// Function to check if it is an identifier (checks keywords as well), uses the keywords map
 func (s *Scanner) isIdentifier() tokens.Token {
 	// Consume alphanumeric characters and underscores
 	for !s.isAtEnd() && (unicode.IsLetter(rune(s.peek())) || unicode.IsDigit(rune(s.peek())) || s.peek() == '_') {
@@ -236,13 +268,149 @@ func (s *Scanner) isIdentifier() tokens.Token {
 	text := s.source[s.start:s.current]
 	// Look for the word in the map and returns the token type and a boolean if it exists or not
 	tokenType, exists := keywords[text]
-	// ^         ^
-	// |         |
-	// Type      boolean
+	//   ^        ^
+	//   |        |
+	// TokenType  bool
 	if exists {
 		// Creates and returns the token if it's a keyword
 		return s.createToken(tokenType)
 	}
 	//  It's not a keyword, returns IDENTIFIER token
 	return s.createToken(tokens.IDENTIFIER)
+}
+
+// Scan and create appropriate tokens
+func (s *Scanner) ScanToken() tokens.Token {
+	// Removes comments and whitespaces
+	s.skipWhitespace()
+	// Move the pointer to the new token
+	s.start = s.current
+	// Check if it is the end of file, if it is then returns EOF token
+	if s.isAtEnd() {
+		return s.createToken(tokens.END_OF_FILE)
+	}
+	// Grab the first character
+	c := s.advance()
+	switch c {
+	// Single-character delimiters
+	case '(':
+		return s.createToken(tokens.OPEN_PAREN)
+	case ')':
+		return s.createToken(tokens.CLOSE_PAREN)
+	case '{':
+		return s.createToken(tokens.OPEN_BRACE)
+	case '}':
+		return s.createToken(tokens.CLOSE_BRACE)
+	case '[':
+		return s.createToken(tokens.OPEN_BRACKET)
+	case ']':
+		return s.createToken(tokens.CLOSE_BRACKET)
+	case ',':
+		return s.createToken(tokens.COMMA)
+	case ':':
+		return s.createToken(tokens.COLON)
+	case ';':
+		return s.createToken(tokens.SEMICOLON)
+	case '?':
+		return s.createToken(tokens.QUESTION)
+
+	// One or two characters
+	case '.':
+		if s.match('.') {
+			return s.createToken(tokens.DOT_DOT)
+		}
+		return s.createToken(tokens.DOT)
+	case '+':
+		if s.match('=') {
+			return s.createToken(tokens.PLUS_EQUAL)
+		}
+		return s.createToken(tokens.PLUS)
+	case '*':
+		if s.match('=') {
+			return s.createToken(tokens.STAR_EQUAL)
+		}
+		return s.createToken(tokens.STAR)
+	case '/':
+		if s.match('=') {
+			return s.createToken(tokens.SLASH_EQUAL)
+		}
+		return s.createToken(tokens.SLASH)
+	case '%':
+		if s.match('=') {
+			return s.createToken(tokens.PERCENT_EQUAL)
+		}
+		return s.createToken(tokens.PERCENT)
+
+	// Three-way branches
+	case '-':
+		if s.match('>') {
+			return s.createToken(tokens.ARROW)
+		}
+		if s.match('=') {
+			return s.createToken(tokens.MINUS_EQUAL)
+		}
+		return s.createToken(tokens.MINUS)
+	case '<':
+		if s.match('<') {
+			return s.createToken(tokens.LEFT_SHIFT)
+		}
+		if s.match('=') {
+			return s.createToken(tokens.LESS_EQUAL)
+		}
+		return s.createToken(tokens.LESS)
+	case '>':
+		if s.match('>') {
+			return s.createToken(tokens.RIGHT_SHIFT)
+		}
+		if s.match('=') {
+			return s.createToken(tokens.GREATER_EQUAL)
+		}
+		return s.createToken(tokens.GREATER)
+
+	// Comparison & Assignment
+	case '=':
+		if s.match('=') {
+			return s.createToken(tokens.EQUAL_EQUAL)
+		}
+		return s.createToken(tokens.EQUAL)
+	case '!':
+		if s.match('=') {
+			return s.createToken(tokens.BANG_EQUAL)
+		}
+		return s.createToken(tokens.BANG)
+	case '&':
+		if s.match('&') {
+			return s.createToken(tokens.AND)
+		}
+		return s.createToken(tokens.BIT_AND)
+	case '|':
+		if s.match('|') {
+			return s.createToken(tokens.OR)
+		}
+		return s.createToken(tokens.BIT_OR)
+
+	// Single Bitwise
+	case '^':
+		return s.createToken(tokens.BIT_XOR)
+	case '~':
+		return s.createToken(tokens.BIT_NOT)
+
+	// Literals
+	case '\'':
+		return s.isCharLiteral()
+	case '"':
+		return s.isStringLiteral()
+
+	// Default case handles Numbers, Identifiers, and Errors
+	default:
+		if unicode.IsDigit(rune(c)) {
+			return s.isNumberLiteral()
+		}
+		if unicode.IsLetter(rune(c)) || c == '_' {
+			return s.isIdentifier()
+		}
+		// If it's a completely unknown symbol
+		return s.errorToken("Unexpected character.")
+	}
+
 }
