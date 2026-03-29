@@ -38,6 +38,10 @@ Thanks for taking the time to contribute.
 * Add or update test cases for changes
 * Update relevant documentation if needed
 
+## Contributors
+
+Add yourself to CONTRIBUTORS.md
+
 ## Notes
 
 * Ensure the project builds before submitting
