@@ -1,0 +1,41 @@
+name: Pluesi Go CI
+
+on:
+  push:
+    branches: [ "main", "dev" ]
+  pull_request:
+    branches: [ "main", "dev" ]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: '1.26.1' # Using a modern, stable Go version
+
+    # GATE 1: Formatting (Fails if code isn't gofmt clean)
+    - name: Check Formatting
+      run: if [ -n "$(gofmt -l .)" ]; then echo "Format errors found. Run 'go fmt ./...' locally."; exit 1; fi
+
+    # GATE 2: The Professional Linter (Catches logic bugs)
+    - name: Run golangci-lint
+      uses: golangci/golangci-lint-action@v4
+      with:
+        version: v1.56.2
+
+    # GATE 3: Download Dependencies
+    - name: Install Dependencies
+      run: go mod download
+
+    # GATE 4: Run all unit tests
+    - name: Run Tests
+      run: go test -v ./...
+
+    # GATE 5: Ensure the binaries actually compile
+    - name: Build Interpreter
+      run: go build -v ./cmd/...
