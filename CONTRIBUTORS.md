@@ -10,4 +10,4 @@ Thanks to everyone who contributes to this project.
 
 ## Honored Contributors
 
-* Rajdeep Nemo
+* [Rajdeep Nemo](https://github.com/Rajdeep-Nemo)
