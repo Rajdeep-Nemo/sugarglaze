@@ -148,3 +148,84 @@ func (as *AssignStatement) String() string {
 	out.WriteString(as.Target.String() + " " + string(as.Operator) + " " + as.Value.String())
 	return out.String()
 }
+
+// Literal nodes for different literal types
+type IntegerLiteral struct {
+	Token token.Token
+	Value uint64
+}
+
+func (il *IntegerLiteral) expressionNode()      {}
+func (il *IntegerLiteral) TokenLiteral() string { return il.Token.Lexeme }
+func (il *IntegerLiteral) String() string       { return il.Token.Lexeme }
+
+type FloatLiteral struct {
+	Token token.Token
+	Value float64
+}
+
+func (fl *FloatLiteral) expressionNode()      {}
+func (fl *FloatLiteral) TokenLiteral() string { return fl.Token.Lexeme }
+func (fl *FloatLiteral) String() string       { return fl.Token.Lexeme }
+
+type StringLiteral struct {
+	Token token.Token
+	Value string
+}
+
+func (sl *StringLiteral) expressionNode()      {}
+func (sl *StringLiteral) TokenLiteral() string { return sl.Token.Lexeme }
+func (sl *StringLiteral) String() string       { return sl.Token.Lexeme }
+
+type BoolLiteral struct {
+	Token token.Token
+	Value bool
+}
+
+func (bl *BoolLiteral) expressionNode()      {}
+func (bl *BoolLiteral) TokenLiteral() string { return bl.Token.Lexeme }
+func (bl *BoolLiteral) String() string       { return bl.Token.Lexeme }
+
+type CharLiteral struct {
+	Token token.Token
+	Value rune
+}
+
+func (cl *CharLiteral) expressionNode()      {}
+func (cl *CharLiteral) TokenLiteral() string { return cl.Token.Lexeme }
+func (cl *CharLiteral) String() string       { return cl.Token.Lexeme }
+
+type NilLiteral struct {
+	Token token.Token
+}
+
+func (nl *NilLiteral) expressionNode()      {}
+func (nl *NilLiteral) TokenLiteral() string { return nl.Token.Lexeme }
+func (nl *NilLiteral) String() string       { return nl.Token.Lexeme }
+
+// Prefix operator nodes for unary expressions
+type PrefixExpression struct {
+	Token    token.Token // The prefix token, e.g. '!' or '-'
+	Operator string      // The operator as a string, e.g. "!" or "-"
+	Right    Expression  // The expression to the right of the operator
+}
+
+func (pe *PrefixExpression) String() string {
+	return "(" + pe.Operator + pe.Right.String() + ")"
+}
+func (pe *PrefixExpression) expressionNode()      {}
+func (pe *PrefixExpression) TokenLiteral() string { return pe.Token.Lexeme }
+
+// Infix operator nodes for binary expressions
+type InfixExpression struct {
+	Token    token.Token // The operator token, e.g. '+'
+	Left     Expression  // The expression to the left of the operator
+	Operator string      // The operator as a string, e.g. "+"
+	Right    Expression  // The expression to the right of the operator
+}
+
+func (ie *InfixExpression) String() string {
+	return "(" + ie.Left.String() + " " + ie.Operator + " " + ie.Right.String() + ")"
+}
+func (ie *InfixExpression) expressionNode()      {}
+func (ie *InfixExpression) TokenLiteral() string { return ie.Token.Lexeme }
