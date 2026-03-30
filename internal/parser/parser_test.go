@@ -1,1 +1,493 @@
 package parser
+
+import (
+	"pluesi/internal/ast"
+	"pluesi/internal/token"
+	"testing"
+)
+
+// ============================================================
+// Helpers
+// ============================================================
+
+// checkParserErrors fails the test if the parser collected any errors.
+func checkParserErrors(t *testing.T, p *Parser) {
+	t.Helper()
+	for _, err := range p.Errors() {
+		t.Errorf("parser error: %s", err)
+	}
+}
+
+// checkNoParserErrors is an alias for clarity in negative tests.
+func expectParserErrors(t *testing.T, p *Parser, count int) {
+	t.Helper()
+	if len(p.Errors()) != count {
+		t.Errorf("expected %d parser error(s), got %d: %v", count, len(p.Errors()), p.Errors())
+	}
+}
+
+// makeProgram builds a Parser from a token slice and returns the parsed Program.
+func makeProgram(tokens []token.Token) (*Parser, *ast.Program) {
+	p := New(tokens)
+	program := p.parseProgram()
+	return p, program
+}
+
+// checkStatementCount fails the test if the program doesn't have exactly n statements.
+func checkStatementCount(t *testing.T, program *ast.Program, n int) {
+	t.Helper()
+	if len(program.Statements) != n {
+		t.Fatalf("expected %d statement(s), got %d", n, len(program.Statements))
+	}
+}
+
+// eof is a convenience token for END_OF_FILE.
+var eof = token.Token{Type: token.END_OF_FILE, Lexeme: ""}
+
+// ============================================================
+// Let Statement Tests
+// ============================================================
+
+// let x = 5  (inferred type, initialized)
+func TestLetInferredType(t *testing.T) {
+	tokens := []token.Token{
+		{Type: token.LET, Lexeme: "let"},
+		{Type: token.IDENTIFIER, Lexeme: "x"},
+		{Type: token.EQUAL, Lexeme: "="},
+		{Type: token.INT_LITERAL, Lexeme: "5"},
+		eof,
+	}
+	p, program := makeProgram(tokens)
+	checkParserErrors(t, p)
+	checkStatementCount(t, program, 1)
+
+	stmt, ok := program.Statements[0].(*ast.LetStatement)
+	if !ok {
+		t.Fatalf("expected *ast.LetStatement, got %T", program.Statements[0])
+	}
+	if stmt.Name.Value != "x" {
+		t.Errorf("expected name 'x', got %q", stmt.Name.Value)
+	}
+	if stmt.TypeHint != nil {
+		t.Errorf("expected no type hint, got %q", stmt.TypeHint.Name)
+	}
+	if stmt.Value == nil {
+		t.Errorf("expected a value, got nil")
+	}
+}
+
+// let x: i32 = 5  (explicit type, initialized)
+func TestLetExplicitType(t *testing.T) {
+	tokens := []token.Token{
+		{Type: token.LET, Lexeme: "let"},
+		{Type: token.IDENTIFIER, Lexeme: "x"},
+		{Type: token.COLON, Lexeme: ":"},
+		{Type: token.I32, Lexeme: "i32"},
+		{Type: token.EQUAL, Lexeme: "="},
+		{Type: token.INT_LITERAL, Lexeme: "5"},
+		eof,
+	}
+	p, program := makeProgram(tokens)
+	checkParserErrors(t, p)
+	checkStatementCount(t, program, 1)
+
+	stmt, ok := program.Statements[0].(*ast.LetStatement)
+	if !ok {
+		t.Fatalf("expected *ast.LetStatement, got %T", program.Statements[0])
+	}
+	if stmt.TypeHint == nil {
+		t.Fatal("expected a type hint, got nil")
+	}
+	if stmt.TypeHint.Name != "i32" {
+		t.Errorf("expected type 'i32', got %q", stmt.TypeHint.Name)
+	}
+	if stmt.Value == nil {
+		t.Errorf("expected a value, got nil")
+	}
+}
+
+// let x: i32  (uninitialized, type provided — valid)
+func TestLetUninitializedWithType(t *testing.T) {
+	tokens := []token.Token{
+		{Type: token.LET, Lexeme: "let"},
+		{Type: token.IDENTIFIER, Lexeme: "x"},
+		{Type: token.COLON, Lexeme: ":"},
+		{Type: token.I32, Lexeme: "i32"},
+		eof,
+	}
+	p, program := makeProgram(tokens)
+	checkParserErrors(t, p)
+	checkStatementCount(t, program, 1)
+
+	stmt, ok := program.Statements[0].(*ast.LetStatement)
+	if !ok {
+		t.Fatalf("expected *ast.LetStatement, got %T", program.Statements[0])
+	}
+	if stmt.TypeHint == nil {
+		t.Fatal("expected a type hint, got nil")
+	}
+	if stmt.Value != nil {
+		t.Errorf("expected no value, got %v", stmt.Value)
+	}
+}
+
+// let x  (uninitialized, no type — invalid, must error)
+func TestLetUninitializedNoType(t *testing.T) {
+	tokens := []token.Token{
+		{Type: token.LET, Lexeme: "let"},
+		{Type: token.IDENTIFIER, Lexeme: "x"},
+		eof,
+	}
+	p, _ := makeProgram(tokens)
+	expectParserErrors(t, p, 1)
+}
+
+// let x: i32 = 5;  (with semicolon — should parse fine)
+func TestLetWithSemicolon(t *testing.T) {
+	tokens := []token.Token{
+		{Type: token.LET, Lexeme: "let"},
+		{Type: token.IDENTIFIER, Lexeme: "myVar"},
+		{Type: token.COLON, Lexeme: ":"},
+		{Type: token.I32, Lexeme: "i32"},
+		{Type: token.EQUAL, Lexeme: "="},
+		{Type: token.INT_LITERAL, Lexeme: "42"},
+		{Type: token.SEMICOLON, Lexeme: ";"},
+		eof,
+	}
+	p, program := makeProgram(tokens)
+	checkParserErrors(t, p)
+	checkStatementCount(t, program, 1)
+}
+
+// let  (missing identifier — invalid)
+func TestLetMissingIdentifier(t *testing.T) {
+	tokens := []token.Token{
+		{Type: token.LET, Lexeme: "let"},
+		{Type: token.EQUAL, Lexeme: "="},
+		eof,
+	}
+	p, _ := makeProgram(tokens)
+	expectParserErrors(t, p, 1)
+}
+
+// let x: <unknown type> = 5  (invalid type keyword)
+func TestLetInvalidType(t *testing.T) {
+	tokens := []token.Token{
+		{Type: token.LET, Lexeme: "let"},
+		{Type: token.IDENTIFIER, Lexeme: "x"},
+		{Type: token.COLON, Lexeme: ":"},
+		{Type: token.IDENTIFIER, Lexeme: "i65"}, // not a valid type keyword
+		{Type: token.EQUAL, Lexeme: "="},
+		{Type: token.INT_LITERAL, Lexeme: "5"},
+		eof,
+	}
+	p, _ := makeProgram(tokens)
+	expectParserErrors(t, p, 1)
+}
+
+// Test all supported type keywords are accepted in let statements
+func TestLetAllTypeKeywords(t *testing.T) {
+	typeTests := []struct {
+		tokenType token.TokenType
+		lexeme    string
+		expected  string
+	}{
+		{token.I8, "i8", "i8"},
+		{token.I16, "i16", "i16"},
+		{token.I32, "i32", "i32"},
+		{token.I64, "i64", "i64"},
+		{token.U8, "u8", "u8"},
+		{token.U16, "u16", "u16"},
+		{token.U32, "u32", "u32"},
+		{token.U64, "u64", "u64"},
+		{token.F32, "f32", "f32"},
+		{token.F64, "f64", "f64"},
+		{token.CHAR, "char", "char"},
+		{token.STRING, "string", "string"},
+		{token.BOOL, "bool", "bool"},
+	}
+
+	for _, tt := range typeTests {
+		t.Run(tt.lexeme, func(t *testing.T) {
+			tokens := []token.Token{
+				{Type: token.LET, Lexeme: "let"},
+				{Type: token.IDENTIFIER, Lexeme: "x"},
+				{Type: token.COLON, Lexeme: ":"},
+				{Type: tt.tokenType, Lexeme: tt.lexeme},
+				eof,
+			}
+			p, program := makeProgram(tokens)
+			checkParserErrors(t, p)
+			checkStatementCount(t, program, 1)
+
+			stmt := program.Statements[0].(*ast.LetStatement)
+			if stmt.TypeHint.Name != tt.expected {
+				t.Errorf("expected type %q, got %q", tt.expected, stmt.TypeHint.Name)
+			}
+		})
+	}
+}
+
+// ============================================================
+// Const Statement Tests
+// ============================================================
+
+// const MAX = 100  (inferred type, initialized)
+// const MAX = 100  (missing type — invalid, must error)
+func TestConstMissingType(t *testing.T) {
+	tokens := []token.Token{
+		{Type: token.CONST, Lexeme: "const"},
+		{Type: token.IDENTIFIER, Lexeme: "MAX"},
+		{Type: token.EQUAL, Lexeme: "="},
+		{Type: token.INT_LITERAL, Lexeme: "100"},
+		eof,
+	}
+
+	p, _ := makeProgram(tokens)
+
+	// We expect exactly 1 parser error because the colon and type are missing
+	expectParserErrors(t, p, 1)
+}
+
+// const MAX: i32 = 100  (explicit type, initialized)
+func TestConstExplicitType(t *testing.T) {
+	tokens := []token.Token{
+		{Type: token.CONST, Lexeme: "const"},
+		{Type: token.IDENTIFIER, Lexeme: "MAX"},
+		{Type: token.COLON, Lexeme: ":"},
+		{Type: token.I32, Lexeme: "i32"},
+		{Type: token.EQUAL, Lexeme: "="},
+		{Type: token.INT_LITERAL, Lexeme: "100"},
+		eof,
+	}
+	p, program := makeProgram(tokens)
+	checkParserErrors(t, p)
+	checkStatementCount(t, program, 1)
+
+	stmt, ok := program.Statements[0].(*ast.ConstStatement)
+	if !ok {
+		t.Fatalf("expected *ast.ConstStatement, got %T", program.Statements[0])
+	}
+	if stmt.TypeHint == nil {
+		t.Fatal("expected a type hint, got nil")
+	}
+	if stmt.TypeHint.Name != "i32" {
+		t.Errorf("expected type 'i32', got %q", stmt.TypeHint.Name)
+	}
+}
+
+// const MAX: i32  (no value — invalid, must error)
+func TestConstUninitializedWithType(t *testing.T) {
+	tokens := []token.Token{
+		{Type: token.CONST, Lexeme: "const"},
+		{Type: token.IDENTIFIER, Lexeme: "MAX"},
+		{Type: token.COLON, Lexeme: ":"},
+		{Type: token.I32, Lexeme: "i32"},
+		eof,
+	}
+	p, _ := makeProgram(tokens)
+	expectParserErrors(t, p, 1)
+}
+
+// const MAX  (no type, no value — invalid, must error)
+func TestConstUninitializedNoType(t *testing.T) {
+	tokens := []token.Token{
+		{Type: token.CONST, Lexeme: "const"},
+		{Type: token.IDENTIFIER, Lexeme: "MAX"},
+		eof,
+	}
+	p, _ := makeProgram(tokens)
+	expectParserErrors(t, p, 1)
+}
+
+// const  (missing identifier — invalid)
+func TestConstMissingIdentifier(t *testing.T) {
+	tokens := []token.Token{
+		{Type: token.CONST, Lexeme: "const"},
+		{Type: token.EQUAL, Lexeme: "="},
+		eof,
+	}
+	p, _ := makeProgram(tokens)
+	expectParserErrors(t, p, 1)
+}
+
+// ============================================================
+// Assign Statement Tests
+// ============================================================
+
+// x = 10  (simple assignment)
+func TestAssignSimple(t *testing.T) {
+	tokens := []token.Token{
+		{Type: token.IDENTIFIER, Lexeme: "x"},
+		{Type: token.EQUAL, Lexeme: "="},
+		{Type: token.INT_LITERAL, Lexeme: "10"},
+		eof,
+	}
+	p, program := makeProgram(tokens)
+	checkParserErrors(t, p)
+	checkStatementCount(t, program, 1)
+
+	stmt, ok := program.Statements[0].(*ast.AssignStatement)
+	if !ok {
+		t.Fatalf("expected *ast.AssignStatement, got %T", program.Statements[0])
+	}
+	if stmt.Target.Value != "x" {
+		t.Errorf("expected target 'x', got %q", stmt.Target.Value)
+	}
+	if stmt.Operator != ast.Assign {
+		t.Errorf("expected operator '=', got %q", stmt.Operator)
+	}
+}
+
+// Test all compound assignment operators
+func TestAssignCompoundOperators(t *testing.T) {
+	opTests := []struct {
+		tokenType token.TokenType
+		lexeme    string
+		expected  ast.AssignOperator
+	}{
+		{token.PLUS_EQUAL, "+=", ast.PlusAssign},
+		{token.MINUS_EQUAL, "-=", ast.MinusAssign},
+		{token.STAR_EQUAL, "*=", ast.StarAssign},
+		{token.SLASH_EQUAL, "/=", ast.SlashAssign},
+		{token.PERCENT_EQUAL, "%=", ast.PercentAssign},
+	}
+
+	for _, tt := range opTests {
+		t.Run(tt.lexeme, func(t *testing.T) {
+			tokens := []token.Token{
+				{Type: token.IDENTIFIER, Lexeme: "x"},
+				{Type: tt.tokenType, Lexeme: tt.lexeme},
+				{Type: token.INT_LITERAL, Lexeme: "5"},
+				eof,
+			}
+			p, program := makeProgram(tokens)
+			checkParserErrors(t, p)
+			checkStatementCount(t, program, 1)
+
+			stmt, ok := program.Statements[0].(*ast.AssignStatement)
+			if !ok {
+				t.Fatalf("expected *ast.AssignStatement, got %T", program.Statements[0])
+			}
+			if stmt.Operator != tt.expected {
+				t.Errorf("expected operator %q, got %q", tt.expected, stmt.Operator)
+			}
+		})
+	}
+}
+
+// x = 10;  (with semicolon — should parse fine)
+func TestAssignWithSemicolon(t *testing.T) {
+	tokens := []token.Token{
+		{Type: token.IDENTIFIER, Lexeme: "x"},
+		{Type: token.EQUAL, Lexeme: "="},
+		{Type: token.INT_LITERAL, Lexeme: "10"},
+		{Type: token.SEMICOLON, Lexeme: ";"},
+		eof,
+	}
+	p, program := makeProgram(tokens)
+	checkParserErrors(t, p)
+	checkStatementCount(t, program, 1)
+}
+
+// ============================================================
+// String() / Pretty Print Tests
+// ============================================================
+
+func TestLetString(t *testing.T) {
+	stmt := &ast.LetStatement{
+		Token: token.Token{Type: token.LET, Lexeme: "let"},
+		Name:  &ast.Identifier{Token: token.Token{Type: token.IDENTIFIER, Lexeme: "x"}, Value: "x"},
+		TypeHint: &ast.TypeAnnotation{
+			Token: token.Token{Type: token.I32, Lexeme: "i32"},
+			Name:  "i32",
+		},
+		Value: nil,
+	}
+	expected := "let x: i32"
+	if stmt.String() != expected {
+		t.Errorf("expected %q, got %q", expected, stmt.String())
+	}
+}
+
+func TestConstString(t *testing.T) {
+	stmt := &ast.ConstStatement{
+		Token:    token.Token{Type: token.CONST, Lexeme: "const"},
+		Name:     &ast.Identifier{Token: token.Token{Type: token.IDENTIFIER, Lexeme: "MAX"}, Value: "MAX"},
+		TypeHint: nil,
+		Value:    &ast.Identifier{Token: token.Token{Type: token.IDENTIFIER, Lexeme: "100"}, Value: "100"},
+	}
+	expected := "const MAX = 100"
+	if stmt.String() != expected {
+		t.Errorf("expected %q, got %q", expected, stmt.String())
+	}
+}
+
+func TestAssignString(t *testing.T) {
+	stmt := &ast.AssignStatement{
+		Token:    token.Token{Type: token.PLUS_EQUAL, Lexeme: "+="},
+		Target:   &ast.Identifier{Token: token.Token{Type: token.IDENTIFIER, Lexeme: "x"}, Value: "x"},
+		Operator: ast.PlusAssign,
+		Value:    &ast.Identifier{Token: token.Token{Type: token.IDENTIFIER, Lexeme: "5"}, Value: "5"},
+	}
+	expected := "x += 5"
+	if stmt.String() != expected {
+		t.Errorf("expected %q, got %q", expected, stmt.String())
+	}
+}
+
+// ============================================================
+// Multi-statement Tests
+// ============================================================
+
+// Parse multiple statements in sequence
+// Parse multiple statements in sequence
+func TestMultipleStatements(t *testing.T) {
+	tokens := []token.Token{
+		// let x: i32 = 5
+		{Type: token.LET, Lexeme: "let"},
+		{Type: token.IDENTIFIER, Lexeme: "x"},
+		{Type: token.COLON, Lexeme: ":"},
+		{Type: token.I32, Lexeme: "i32"},
+		{Type: token.EQUAL, Lexeme: "="},
+		{Type: token.INT_LITERAL, Lexeme: "5"},
+
+		// const MAX: i32 = 100  <-- FIXED: Added type annotation here
+		{Type: token.CONST, Lexeme: "const"},
+		{Type: token.IDENTIFIER, Lexeme: "MAX"},
+		{Type: token.COLON, Lexeme: ":"}, // ADDED
+		{Type: token.I32, Lexeme: "i32"}, // ADDED
+		{Type: token.EQUAL, Lexeme: "="},
+		{Type: token.INT_LITERAL, Lexeme: "100"},
+
+		// x += 1
+		{Type: token.IDENTIFIER, Lexeme: "x"},
+		{Type: token.PLUS_EQUAL, Lexeme: "+="},
+		{Type: token.INT_LITERAL, Lexeme: "1"},
+		eof,
+	}
+	p, program := makeProgram(tokens)
+	checkParserErrors(t, p)
+	checkStatementCount(t, program, 3)
+
+	// first statement is a LetStatement
+	if _, ok := program.Statements[0].(*ast.LetStatement); !ok {
+		t.Errorf("expected statement 0 to be *ast.LetStatement, got %T", program.Statements[0])
+	}
+	// second is a ConstStatement
+	if _, ok := program.Statements[1].(*ast.ConstStatement); !ok {
+		t.Errorf("expected statement 1 to be *ast.ConstStatement, got %T", program.Statements[1])
+	}
+	// third is an AssignStatement
+	if _, ok := program.Statements[2].(*ast.AssignStatement); !ok {
+		t.Errorf("expected statement 2 to be *ast.AssignStatement, got %T", program.Statements[2])
+	}
+}
+
+// Empty program — should parse fine with zero statements
+func TestEmptyProgram(t *testing.T) {
+	tokens := []token.Token{eof}
+	p, program := makeProgram(tokens)
+	checkParserErrors(t, p)
+	checkStatementCount(t, program, 0)
+}
