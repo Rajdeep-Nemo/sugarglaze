@@ -233,7 +233,8 @@ func TestLetAllTypeKeywords(t *testing.T) {
 // ============================================================
 
 // const MAX = 100  (inferred type, initialized)
-func TestConstInferredType(t *testing.T) {
+// const MAX = 100  (missing type — invalid, must error)
+func TestConstMissingType(t *testing.T) {
 	tokens := []token.Token{
 		{Type: token.CONST, Lexeme: "const"},
 		{Type: token.IDENTIFIER, Lexeme: "MAX"},
@@ -241,20 +242,11 @@ func TestConstInferredType(t *testing.T) {
 		{Type: token.INT_LITERAL, Lexeme: "100"},
 		eof,
 	}
-	p, program := makeProgram(tokens)
-	checkParserErrors(t, p)
-	checkStatementCount(t, program, 1)
 
-	stmt, ok := program.Statements[0].(*ast.ConstStatement)
-	if !ok {
-		t.Fatalf("expected *ast.ConstStatement, got %T", program.Statements[0])
-	}
-	if stmt.Name.Value != "MAX" {
-		t.Errorf("expected name 'MAX', got %q", stmt.Name.Value)
-	}
-	if stmt.Value == nil {
-		t.Errorf("expected a value, got nil")
-	}
+	p, _ := makeProgram(tokens)
+
+	// We expect exactly 1 parser error because the colon and type are missing
+	expectParserErrors(t, p, 1)
 }
 
 // const MAX: i32 = 100  (explicit type, initialized)
@@ -449,6 +441,7 @@ func TestAssignString(t *testing.T) {
 // ============================================================
 
 // Parse multiple statements in sequence
+// Parse multiple statements in sequence
 func TestMultipleStatements(t *testing.T) {
 	tokens := []token.Token{
 		// let x: i32 = 5
@@ -458,11 +451,15 @@ func TestMultipleStatements(t *testing.T) {
 		{Type: token.I32, Lexeme: "i32"},
 		{Type: token.EQUAL, Lexeme: "="},
 		{Type: token.INT_LITERAL, Lexeme: "5"},
-		// const MAX = 100
+
+		// const MAX: i32 = 100  <-- FIXED: Added type annotation here
 		{Type: token.CONST, Lexeme: "const"},
 		{Type: token.IDENTIFIER, Lexeme: "MAX"},
+		{Type: token.COLON, Lexeme: ":"}, // ADDED
+		{Type: token.I32, Lexeme: "i32"}, // ADDED
 		{Type: token.EQUAL, Lexeme: "="},
 		{Type: token.INT_LITERAL, Lexeme: "100"},
+
 		// x += 1
 		{Type: token.IDENTIFIER, Lexeme: "x"},
 		{Type: token.PLUS_EQUAL, Lexeme: "+="},
