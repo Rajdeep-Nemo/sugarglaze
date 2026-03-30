@@ -180,6 +180,22 @@ func (as *AssignStatement) String() string {
 	return out.String()
 }
 
+// ExpressionStatement represents an expression standing alone on a line (e.g., a function call)
+type ExpressionStatement struct {
+	Token      token.Token
+	Expression Expression
+}
+
+func (es *ExpressionStatement) statementNode()       {}
+func (es *ExpressionStatement) TokenLiteral() string { return es.Token.Lexeme }
+
+func (es *ExpressionStatement) String() string {
+	if es.Expression != nil {
+		return es.Expression.String() + ";"
+	}
+	return ""
+}
+
 // Literal nodes for different literal types
 type IntegerLiteral struct {
 	Token token.Token

@@ -167,7 +167,7 @@ func TestLetMissingIdentifier(t *testing.T) {
 		eof,
 	}
 	p, _ := makeProgram(tokens)
-	expectParserErrors(t, p, 1)
+	expectParserErrors(t, p, 2)
 }
 
 // let x: <unknown type> = 5  (invalid type keyword)
@@ -245,8 +245,8 @@ func TestConstMissingType(t *testing.T) {
 
 	p, _ := makeProgram(tokens)
 
-	// We expect exactly 1 parser error because the colon and type are missing
-	expectParserErrors(t, p, 1)
+	// We expect exactly 2 parser errors because the colon and type are missing
+	expectParserErrors(t, p, 2)
 }
 
 // const MAX: i32 = 100  (explicit type, initialized)
@@ -308,7 +308,7 @@ func TestConstMissingIdentifier(t *testing.T) {
 		eof,
 	}
 	p, _ := makeProgram(tokens)
-	expectParserErrors(t, p, 1)
+	expectParserErrors(t, p, 2)
 }
 
 // ============================================================
@@ -557,4 +557,132 @@ func TestEmptyProgram(t *testing.T) {
 	p, program := makeProgram(tokens)
 	checkParserErrors(t, p)
 	checkStatementCount(t, program, 0)
+}
+
+// Test comprehensive call expressions in both let and expression statements, with various argument types and nesting levels
+func TestComprehensiveCallExpressions(t *testing.T) {
+	tests := []struct {
+		name         string
+		inputTokens  []token.Token
+		isLet        bool     // Is this a Let statement (true) or an Expression statement (false)?
+		expectedFunc string   // The name of the function being called
+		expectedArgs []string // The string representation of each argument
+	}{
+		{
+			name: "Standalone with no arguments",
+			// print();
+			inputTokens: []token.Token{
+				{Type: token.IDENTIFIER, Lexeme: "print"},
+				{Type: token.OPEN_PAREN, Lexeme: "("},
+				{Type: token.CLOSE_PAREN, Lexeme: ")"},
+				{Type: token.SEMICOLON, Lexeme: ";"},
+				eof,
+			},
+			isLet:        false,
+			expectedFunc: "print",
+			expectedArgs: []string{},
+		},
+		{
+			name: "Standalone with format string and variable",
+			// print("Val: {i32}", x);
+			inputTokens: []token.Token{
+				{Type: token.IDENTIFIER, Lexeme: "print"},
+				{Type: token.OPEN_PAREN, Lexeme: "("},
+				{Type: token.STRING_LITERAL, Lexeme: "\"Val: {i32}\""},
+				{Type: token.COMMA, Lexeme: ","},
+				{Type: token.IDENTIFIER, Lexeme: "x"},
+				{Type: token.CLOSE_PAREN, Lexeme: ")"},
+				{Type: token.SEMICOLON, Lexeme: ";"},
+				eof,
+			},
+			isLet:        false,
+			expectedFunc: "print",
+			expectedArgs: []string{"\"Val: {i32}\"", "x"},
+		},
+		{
+			name: "Call inside a let declaration",
+			// let result = add(5, 10);
+			inputTokens: []token.Token{
+				{Type: token.LET, Lexeme: "let"},
+				{Type: token.IDENTIFIER, Lexeme: "result"},
+				{Type: token.EQUAL, Lexeme: "="},
+				{Type: token.IDENTIFIER, Lexeme: "add"},
+				{Type: token.OPEN_PAREN, Lexeme: "("},
+				{Type: token.INT_LITERAL, Lexeme: "5"},
+				{Type: token.COMMA, Lexeme: ","},
+				{Type: token.INT_LITERAL, Lexeme: "10"},
+				{Type: token.CLOSE_PAREN, Lexeme: ")"},
+				{Type: token.SEMICOLON, Lexeme: ";"},
+				eof,
+			},
+			isLet:        true,
+			expectedFunc: "add",
+			expectedArgs: []string{"5", "10"},
+		},
+		{
+			name: "Nested function call",
+			// print(get_value());
+			inputTokens: []token.Token{
+				{Type: token.IDENTIFIER, Lexeme: "print"},
+				{Type: token.OPEN_PAREN, Lexeme: "("},
+				{Type: token.IDENTIFIER, Lexeme: "get_value"},
+				{Type: token.OPEN_PAREN, Lexeme: "("},
+				{Type: token.CLOSE_PAREN, Lexeme: ")"},
+				{Type: token.CLOSE_PAREN, Lexeme: ")"},
+				{Type: token.SEMICOLON, Lexeme: ";"},
+				eof,
+			},
+			isLet:        false,
+			expectedFunc: "print",
+			expectedArgs: []string{"get_value()"}, // The inner call expression stringifies to this
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			p, program := makeProgram(tt.inputTokens)
+			checkParserErrors(t, p)
+			checkStatementCount(t, program, 1)
+
+			var callExp *ast.CallExpression
+
+			// Extract the CallExpression based on the statement type
+			if tt.isLet {
+				stmt, ok := program.Statements[0].(*ast.LetStatement)
+				if !ok {
+					t.Fatalf("expected *ast.LetStatement, got %T", program.Statements[0])
+				}
+				callExp, ok = stmt.Value.(*ast.CallExpression)
+				if !ok {
+					t.Fatalf("expected stmt.Value to be *ast.CallExpression, got %T", stmt.Value)
+				}
+			} else {
+				stmt, ok := program.Statements[0].(*ast.ExpressionStatement)
+				if !ok {
+					t.Fatalf("expected *ast.ExpressionStatement, got %T", program.Statements[0])
+				}
+				callExp, ok = stmt.Expression.(*ast.CallExpression)
+				if !ok {
+					t.Fatalf("expected stmt.Expression to be *ast.CallExpression, got %T", stmt.Expression)
+				}
+			}
+
+			// 1. Check the function name
+			if callExp.Function.String() != tt.expectedFunc {
+				t.Errorf("expected function name %q, got %q", tt.expectedFunc, callExp.Function.String())
+			}
+
+			// 2. Check the arguments length
+			if len(callExp.Arguments) != len(tt.expectedArgs) {
+				t.Fatalf("expected %d arguments, got %d", len(tt.expectedArgs), len(callExp.Arguments))
+			}
+
+			// 3. Check each argument's string representation
+			for i, arg := range callExp.Arguments {
+				if arg.String() != tt.expectedArgs[i] {
+					t.Errorf("argument %d: expected %q, got %q", i, tt.expectedArgs[i], arg.String())
+				}
+			}
+		})
+	}
 }

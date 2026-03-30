@@ -97,8 +97,7 @@ func (p *Parser) parseStatement() ast.Statement {
 		}
 		fallthrough
 	default:
-		p.advance()
-		return nil
+		return p.parseExpressionStatement()
 	}
 }
 
@@ -294,17 +293,18 @@ func (p *Parser) parseExpression(precedence Precedence) ast.Expression {
 	prefix := prefixParseFns[p.currentToken().Type]
 	if prefix == nil {
 		p.errorf("no prefix parse function for %q at line %d", p.currentToken().Lexeme, p.currentToken().Line)
+		p.advance()
 		return nil
 	}
 	// Call the prefix parse function to get the left-hand side expression
 	leftExp := prefix()
 	// Loop to parse infix expressions as long as the next token has a higher precedence
-	for precedence < p.peekPrecedence() {
-		infix := infixParseFns[p.peekToken().Type]
+	for precedence < p.currentPrecedence() {
+		infix := infixParseFns[p.currentToken().Type]
 		if infix == nil {
 			return leftExp
 		}
-		p.advance()
+
 		leftExp = infix(leftExp)
 	}
 	return leftExp
@@ -341,6 +341,7 @@ var precedences = map[token.TokenType]Precedence{
 	token.STAR:          PRODUCT,
 	token.SLASH:         PRODUCT,
 	token.PERCENT:       PRODUCT,
+	token.OPEN_PAREN:    CALL,
 }
 
 func (p *Parser) currentPrecedence() Precedence {
@@ -524,20 +525,19 @@ func (p *Parser) parseCallExpression(function ast.Expression) ast.Expression {
 func (p *Parser) parseCallArguments() []ast.Expression {
 	args := []ast.Expression{}
 
-	// If the next token is ')', there are no arguments: print()
+	p.advance() // Move past the '('
+
+	// Check if the very next token is ')', meaning no arguments: print()
 	if p.check(token.CLOSE_PAREN) {
 		p.advance() // Consume the ')'
 		return args
 	}
 
-	p.advance() // Move past the '('
-
 	// Parse the first argument
 	args = append(args, p.parseExpression(LOWEST))
 
-	// While there is a comma, keep parsing arguments
+	// While the current token is a comma, keep parsing arguments
 	for p.check(token.COMMA) {
-		p.advance() // Consume the current token
 		p.advance() // Consume the comma
 		args = append(args, p.parseExpression(LOWEST))
 	}
@@ -550,4 +550,17 @@ func (p *Parser) parseCallArguments() []ast.Expression {
 
 	p.advance() // Consume the ')'
 	return args
+}
+
+// Parses an expression standing as its own statement
+func (p *Parser) parseExpressionStatement() *ast.ExpressionStatement {
+	stmt := &ast.ExpressionStatement{Token: p.currentToken()}
+
+	// Parse the expression (like print("hello")) using the lowest precedence
+	stmt.Expression = p.parseExpression(LOWEST)
+
+	// Semicolons are optional in your language!
+	p.consumeSemicolon()
+
+	return stmt
 }
