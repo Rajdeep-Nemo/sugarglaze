@@ -2,8 +2,8 @@ package parser
 
 import (
 	"fmt"
-	"pluesi/internal/ast"
-	"pluesi/internal/token"
+	"glaze/internal/ast"
+	"glaze/internal/token"
 	"strconv"
 )
 
@@ -130,80 +130,86 @@ func (p *Parser) parseTypeAnnotation() *ast.TypeAnnotation {
 	return &ast.TypeAnnotation{Token: t, Name: name}
 }
 
-// Helper function to consume a semicolon if it's present, since semicolons are optional
-func (p *Parser) consumeSemicolon() {
-	if p.check(token.SEMICOLON) {
-		p.advance()
-	}
-}
-
 // Parses a let statement, which can optionally include a type annotation.
-func (p *Parser) parseLetStatement() *ast.LetStatement {
-	// Consume let token
-	letToken := p.advance()
-	// Expect and consume identifier
-	nameToken, ok := p.expect(token.IDENTIFIER)
+func (p *Parser) parseLetStatement() ast.Statement {
+	stmt := &ast.LetStatement{Token: p.currentToken()}
+
+	p.advance() // Move past the 'let' keyword
+
+	// 1. Get the identifier name
+	identToken, ok := p.expect(token.IDENTIFIER)
 	if !ok {
 		return nil
 	}
-	name := &ast.Identifier{Token: nameToken, Value: nameToken.Lexeme}
-	// if ':' parse type
-	if p.check(token.COLON) {
-		p.advance()
-		typeHint := p.parseTypeAnnotation()
-		if p.check(token.EQUAL) {
-			p.advance()
-			value := p.parseExpression(LOWEST)
-			p.consumeSemicolon()
-			return &ast.LetStatement{Token: letToken, Name: name, TypeHint: typeHint, Value: value}
-		} else {
-			p.consumeSemicolon()
-			return &ast.LetStatement{Token: letToken, Name: name, TypeHint: typeHint, Value: nil}
+	stmt.Name = &ast.Identifier{Token: identToken, Value: identToken.Lexeme}
+
+	// 2. OPTIONAL Type Hint
+	if p.currentToken().Type == token.COLON {
+		p.advance() // Move past the ':'
+
+		stmt.TypeHint = p.parseTypeAnnotation()
+		if stmt.TypeHint == nil {
+			return nil
 		}
-	} else if p.check(token.EQUAL) { // if '=' parse expression
-		p.advance()
-		value := p.parseExpression(LOWEST)
-		p.consumeSemicolon()
-		return &ast.LetStatement{Token: letToken, Name: name, TypeHint: nil, Value: value}
-	} else { // if nothing then error
-		p.errorf("uninitialized variable %q must have a type annotation at line %d", name.Value, p.currentToken().Line)
 	}
-	return nil
+
+	// BUG FIX: If there is no Type Hint, there MUST be an equals sign!
+	if stmt.TypeHint == nil && p.currentToken().Type == token.END_OF_FILE {
+		p.expect(token.EQUAL)
+		return nil
+	}
+
+	// Handle VALID uninitialized variables
+	if p.currentToken().Type == token.END_OF_FILE {
+		return stmt
+	}
+
+	// 4. Expect the Equals sign if it IS initialized
+	if _, ok := p.expect(token.EQUAL); !ok {
+		return nil
+	}
+
+	// 5. Parse the right side of the equals sign
+	stmt.Value = p.parseExpression(LOWEST)
+
+	return stmt
 }
 
 // Parses a const statement, which MUST include a type annotation and an initializer.
-func (p *Parser) parseConstStatement() *ast.ConstStatement {
-	// Consume const token
-	constToken := p.advance()
+func (p *Parser) parseConstStatement() ast.Statement {
+	stmt := &ast.ConstStatement{Token: p.currentToken()}
 
-	// Expect and consume identifier
-	nameToken, ok := p.expect(token.IDENTIFIER)
+	p.advance() // Move past the 'const' keyword
+
+	// 1. Get the identifier name
+	identToken, ok := p.expect(token.IDENTIFIER)
 	if !ok {
 		return nil
 	}
-	name := &ast.Identifier{Token: nameToken, Value: nameToken.Lexeme}
+	stmt.Name = &ast.Identifier{Token: identToken, Value: identToken.Lexeme}
 
-	// 1. Enforce Type Annotation
-	if !p.check(token.COLON) {
-		p.errorf("const %q must have a type annotation at line %d", name.Value, p.currentToken().Line)
+	// 2. MANDATORY Type Hint
+	if _, ok := p.expect(token.COLON); !ok {
 		return nil
 	}
-	p.advance() // Consume ':'
-	typeHint := p.parseTypeAnnotation()
 
-	// 2. Enforce Initialization
-	if !p.check(token.EQUAL) {
-		p.errorf("const %q must be initialized at line %d", name.Value, p.currentToken().Line)
+	stmt.TypeHint = p.parseTypeAnnotation()
+	if stmt.TypeHint == nil {
 		return nil
 	}
-	p.advance() // Consume '='
 
-	// 3. Parse the value expression
-	value := p.parseExpression(LOWEST)
-	p.consumeSemicolon()
+	// 3. Expect the Equals sign
+	if _, ok := p.expect(token.EQUAL); !ok {
+		return nil
+	}
 
-	return &ast.ConstStatement{Token: constToken, Name: name, TypeHint: typeHint, Value: value}
+	// 4. Parse the right side of the equals sign
+	stmt.Value = p.parseExpression(LOWEST)
+
+	return stmt
 }
+
+// Parses a const statement, which MUST include a type annotation and an initializer.
 
 // Parses an identifier (variable) in an expression
 func (p *Parser) parseIdentifier() ast.Expression {
@@ -238,7 +244,6 @@ func (p *Parser) parseAssignmentStatement() *ast.AssignStatement {
 	}
 	p.advance()
 	value := p.parseExpression(LOWEST)
-	p.consumeSemicolon()
 	return &ast.AssignStatement{Token: opToken, Target: name, Operator: assignOp, Value: value}
 }
 
@@ -282,8 +287,6 @@ func (p *Parser) parseImportStatement() *ast.ImportStatement {
 		strNode := p.parseStringLiteral().(*ast.StringLiteral)
 		stmt.Modules = append(stmt.Modules, strNode)
 	}
-
-	p.consumeSemicolon()
 	return stmt
 }
 
@@ -559,10 +562,6 @@ func (p *Parser) parseExpressionStatement() *ast.ExpressionStatement {
 
 	// Parse the expression (like print("hello")) using the lowest precedence
 	stmt.Expression = p.parseExpression(LOWEST)
-
-	// Semicolons are optional in your language!
-	p.consumeSemicolon()
-
 	return stmt
 }
 
@@ -593,36 +592,35 @@ func (p *Parser) parseIfExpression() ast.Expression {
 
 	p.advance() // Move past the 'if' keyword
 
-	// Use YOUR expect method for the '('
+	// Use expect for '('
 	if _, ok := p.expect(token.OPEN_PAREN); !ok {
 		return nil
 	}
 
-	// Parse the condition inside the parentheses
 	expression.Condition = p.parseExpression(LOWEST)
 
-	// Use YOUR expect method for the ')'
+	// Use expect for ')'
 	if _, ok := p.expect(token.CLOSE_PAREN); !ok {
 		return nil
 	}
 
-	// Use YOUR expect method for the '{' starting the block
-	if _, ok := p.expect(token.OPEN_BRACE); !ok {
+	// FIX: Use check() here so we DON'T double-advance!
+	// parseBlockStatement needs to see the '{' to consume it properly.
+	if !p.check(token.OPEN_BRACE) {
+		p.errorf("expected '{' but got %q at line %d", p.currentToken().Lexeme, p.currentToken().Line)
 		return nil
 	}
-
-	// Parse the consequence block
 	expression.Consequence = p.parseBlockStatement()
 
-	// Check if the current token is now 'else'
+	// Check if there is an 'else' block
 	if p.currentToken().Type == token.ELSE {
 		p.advance() // Move past 'else'
 
-		// Expect the '{' for the else block
-		if _, ok := p.expect(token.OPEN_BRACE); !ok {
+		// FIX: Use check() here as well!
+		if !p.check(token.OPEN_BRACE) {
+			p.errorf("expected '{' after else but got %q at line %d", p.currentToken().Lexeme, p.currentToken().Line)
 			return nil
 		}
-
 		expression.Alternative = p.parseBlockStatement()
 	}
 

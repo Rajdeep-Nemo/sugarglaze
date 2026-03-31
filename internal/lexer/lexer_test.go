@@ -2,7 +2,7 @@
 package lexer
 
 import (
-	"pluesi/internal/token"
+	"glaze/internal/token"
 	"testing"
 )
 
@@ -22,7 +22,7 @@ func TestScanner(t *testing.T) {
 	}{
 		{
 			name:  "Single Character Punctuation",
-			input: "(){}[],.;?",
+			input: "(){}[],.?",
 			expected: []expectedToken{
 				{token.OPEN_PAREN, "(", 1},
 				{token.CLOSE_PAREN, ")", 1},
@@ -32,7 +32,6 @@ func TestScanner(t *testing.T) {
 				{token.CLOSE_BRACKET, "]", 1},
 				{token.COMMA, ",", 1},
 				{token.DOT, ".", 1},
-				{token.SEMICOLON, ";", 1},
 				{token.QUESTION, "?", 1},
 				{token.END_OF_FILE, "", 1},
 			},
@@ -171,7 +170,7 @@ func TestScanner(t *testing.T) {
 			input: `
                 // This is a comment
                 fn calculate() i32 {
-                    return 100;
+                    return 100
                 }
             `,
 			expected: []expectedToken{
@@ -183,7 +182,6 @@ func TestScanner(t *testing.T) {
 				{token.OPEN_BRACE, "{", 3},
 				{token.RETURN, "return", 4},
 				{token.INT_LITERAL, "100", 4},
-				{token.SEMICOLON, ";", 4},
 				{token.CLOSE_BRACE, "}", 5},
 				{token.END_OF_FILE, "", 6},
 			},
@@ -191,7 +189,7 @@ func TestScanner(t *testing.T) {
 		{
 			name: "EVIL: Alien Characters",
 			// Someone drops a random @ and $ in the code
-			input: "let @x = $5;",
+			input: "let @x = $5",
 			expected: []expectedToken{
 				{token.LET, "let", 1},
 				{token.ERROR_TOKEN, "Unexpected character.", 1}, // The @
@@ -199,7 +197,6 @@ func TestScanner(t *testing.T) {
 				{token.EQUAL, "=", 1},
 				{token.ERROR_TOKEN, "Unexpected character.", 1}, // The $
 				{token.INT_LITERAL, "5", 1},                     // It should recover and keep reading!
-				{token.SEMICOLON, ";", 1},
 				{token.END_OF_FILE, "", 1},
 			},
 		},
@@ -215,13 +212,12 @@ func TestScanner(t *testing.T) {
 		{
 			name: "EVIL: EOF Triggered Mid-Comment",
 			// A comment with no newline at the end of the file
-			input: "let x = 10; // This file ends right he...",
+			input: "let x = 10 // This file ends right he...",
 			expected: []expectedToken{
 				{token.LET, "let", 1},
 				{token.IDENTIFIER, "x", 1},
 				{token.EQUAL, "=", 1},
 				{token.INT_LITERAL, "10", 1},
-				{token.SEMICOLON, ";", 1},
 				{token.END_OF_FILE, "", 1}, // It should gracefully hit EOF, not freeze
 			},
 		},

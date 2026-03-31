@@ -3,22 +3,22 @@ package main
 import (
 	"fmt"
 	"os"
-	"pluesi/internal/evaluator"
-	"pluesi/internal/lexer"
-	"pluesi/internal/object"
-	"pluesi/internal/parser"
-	"pluesi/internal/token"
+	"glaze/internal/evaluator"
+	"glaze/internal/lexer"
+	"glaze/internal/object"
+	"glaze/internal/parser"
+	"glaze/internal/token"
 )
 
 func main() {
 	if len(os.Args) < 2 {
 		fmt.Println("No input file provided.")
-		fmt.Println("Usage: ./pluesi <filename>")
+		fmt.Println("Usage: ./glaze <filename>")
 		os.Exit(1)
 	}
 	if len(os.Args) > 2 {
 		fmt.Println("Multiple files found.")
-		fmt.Println("Usage: ./pluesi <filename>")
+		fmt.Println("Usage: ./glaze <filename>")
 		os.Exit(1)
 	}
 

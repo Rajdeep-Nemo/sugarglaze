@@ -1,3 +1,3 @@
-module pluesi
+module glaze
 
 go 1.26.1

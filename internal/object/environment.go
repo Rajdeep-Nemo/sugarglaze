@@ -2,10 +2,11 @@ package object
 
 import "fmt"
 
-// Record holds the actual value and whether it is a constant
+// Record holds the actual value and whether it is a constant, as well as its type (for type checking)
 type Record struct {
 	Value   Object
 	IsConst bool
+	Type   string
 }
 
 // Environment is a map of strings to Records, with a pointer to an outer scope
@@ -16,8 +17,7 @@ type Environment struct {
 
 // NewEnvironment creates a fresh, global environment
 func NewEnvironment() *Environment {
-	s := make(map[string]Record)
-	return &Environment{store: s, outer: nil}
+	return &Environment{store: make(map[string]Record), outer: nil}
 }
 
 // NewEnclosedEnvironment creates a new local scope (e.g., for a function or if-block)
@@ -37,8 +37,8 @@ func (e *Environment) Get(name string) (Record, bool) {
 }
 
 // Creates a brand new variable in the CURRENT scope (used for `let` and `const`)
-func (e *Environment) Define(name string, val Object, isConst bool) Object {
-	e.store[name] = Record{Value: val, IsConst: isConst}
+func (e *Environment) Define(name string, val Object, isConst bool, varType string) Object {
+	e.store[name] = Record{Value: val, IsConst: isConst, Type: varType}
 	return val
 }
 
@@ -46,21 +46,24 @@ func (e *Environment) Define(name string, val Object, isConst bool) Object {
 func (e *Environment) Assign(name string, val Object) Object {
 	record, ok := e.store[name]
 
-	// 1. If it's not in the local scope, try to assign it in the outer scope
 	if !ok {
 		if e.outer != nil {
 			return e.outer.Assign(name, val)
 		}
-		// If we hit the top without finding it, the user is assigning an undeclared variable
 		return &Error{Message: fmt.Sprintf("cannot assign to undefined variable '%s'", name)}
 	}
 
-	// 2. Enforce Const Immutability!
 	if record.IsConst {
 		return &Error{Message: fmt.Sprintf("cannot reassign to const variable '%s'", name)}
 	}
 
-	// 3. Update the value
-	e.store[name] = Record{Value: val, IsConst: false}
+	// THE ULTIMATE TYPE CHECK: The memory slot enforces its own type!
+	if record.Type != "" && record.Type != string(val.Type()) {
+		return &Error{Message: fmt.Sprintf("type mismatch: cannot assign '%s' to variable '%s' (expected '%s')", 
+			val.Type(), name, record.Type)}
+	}
+
+	// Update the value, keeping the same type constraint
+	e.store[name] = Record{Value: val, IsConst: false, Type: record.Type}
 	return val
 }

@@ -2,7 +2,7 @@ package ast
 
 import (
 	"bytes"
-	"pluesi/internal/token"
+	"glaze/internal/token"
 	"strings"
 )
 

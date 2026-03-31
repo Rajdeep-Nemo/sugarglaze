@@ -1,8 +1,8 @@
 package parser
 
 import (
-	"pluesi/internal/ast"
-	"pluesi/internal/token"
+	"glaze/internal/ast"
+	"glaze/internal/token"
 	"testing"
 )
 
@@ -142,23 +142,6 @@ func TestLetUninitializedNoType(t *testing.T) {
 	expectParserErrors(t, p, 1)
 }
 
-// let x: i32 = 5;  (with semicolon — should parse fine)
-func TestLetWithSemicolon(t *testing.T) {
-	tokens := []token.Token{
-		{Type: token.LET, Lexeme: "let"},
-		{Type: token.IDENTIFIER, Lexeme: "myVar"},
-		{Type: token.COLON, Lexeme: ":"},
-		{Type: token.I32, Lexeme: "i32"},
-		{Type: token.EQUAL, Lexeme: "="},
-		{Type: token.INT_LITERAL, Lexeme: "42"},
-		{Type: token.SEMICOLON, Lexeme: ";"},
-		eof,
-	}
-	p, program := makeProgram(tokens)
-	checkParserErrors(t, p)
-	checkStatementCount(t, program, 1)
-}
-
 // let  (missing identifier — invalid)
 func TestLetMissingIdentifier(t *testing.T) {
 	tokens := []token.Token{
@@ -232,21 +215,18 @@ func TestLetAllTypeKeywords(t *testing.T) {
 // Const Statement Tests
 // ============================================================
 
-// const MAX = 100  (inferred type, initialized)
 // const MAX = 100  (missing type — invalid, must error)
 func TestConstMissingType(t *testing.T) {
-	tokens := []token.Token{
-		{Type: token.CONST, Lexeme: "const"},
-		{Type: token.IDENTIFIER, Lexeme: "MAX"},
-		{Type: token.EQUAL, Lexeme: "="},
-		{Type: token.INT_LITERAL, Lexeme: "100"},
-		eof,
-	}
+    tokens := []token.Token{
+        {Type: token.CONST, Lexeme: "const"},
+        {Type: token.IDENTIFIER, Lexeme: "MAX"},
+        {Type: token.EQUAL, Lexeme: "="},
+        {Type: token.INT_LITERAL, Lexeme: "100"},
+        eof,
+    }
 
-	p, _ := makeProgram(tokens)
-
-	// We expect exactly 2 parser errors because the colon and type are missing
-	expectParserErrors(t, p, 2)
+    p, _ := makeProgram(tokens)
+    expectParserErrors(t, p, 2) // We expect this to fail now!
 }
 
 // const MAX: i32 = 100  (explicit type, initialized)
@@ -376,20 +356,6 @@ func TestAssignCompoundOperators(t *testing.T) {
 	}
 }
 
-// x = 10;  (with semicolon — should parse fine)
-func TestAssignWithSemicolon(t *testing.T) {
-	tokens := []token.Token{
-		{Type: token.IDENTIFIER, Lexeme: "x"},
-		{Type: token.EQUAL, Lexeme: "="},
-		{Type: token.INT_LITERAL, Lexeme: "10"},
-		{Type: token.SEMICOLON, Lexeme: ";"},
-		eof,
-	}
-	p, program := makeProgram(tokens)
-	checkParserErrors(t, p)
-	checkStatementCount(t, program, 1)
-}
-
 // ============================================================
 // String() / Pretty Print Tests
 // ============================================================
@@ -497,7 +463,6 @@ func TestImportStatement(t *testing.T) {
 			inputTokens: []token.Token{
 				{Type: token.IMPORT, Lexeme: "import"},
 				{Type: token.STRING_LITERAL, Lexeme: "\"io\""}, // Lexer includes quotes
-				{Type: token.SEMICOLON, Lexeme: ";"},
 				eof,
 			},
 			expectedModules: []string{"io"}, // Note: parseStringLiteral strips the quotes for the AST Value
@@ -512,7 +477,6 @@ func TestImportStatement(t *testing.T) {
 				{Type: token.COMMA, Lexeme: ","},
 				{Type: token.STRING_LITERAL, Lexeme: "\"math\""},
 				{Type: token.CLOSE_PAREN, Lexeme: ")"},
-				{Type: token.SEMICOLON, Lexeme: ";"},
 				eof,
 			},
 			expectedModules: []string{"io", "math"},
@@ -575,7 +539,6 @@ func TestComprehensiveCallExpressions(t *testing.T) {
 				{Type: token.IDENTIFIER, Lexeme: "print"},
 				{Type: token.OPEN_PAREN, Lexeme: "("},
 				{Type: token.CLOSE_PAREN, Lexeme: ")"},
-				{Type: token.SEMICOLON, Lexeme: ";"},
 				eof,
 			},
 			isLet:        false,
@@ -592,7 +555,6 @@ func TestComprehensiveCallExpressions(t *testing.T) {
 				{Type: token.COMMA, Lexeme: ","},
 				{Type: token.IDENTIFIER, Lexeme: "x"},
 				{Type: token.CLOSE_PAREN, Lexeme: ")"},
-				{Type: token.SEMICOLON, Lexeme: ";"},
 				eof,
 			},
 			isLet:        false,
@@ -612,7 +574,6 @@ func TestComprehensiveCallExpressions(t *testing.T) {
 				{Type: token.COMMA, Lexeme: ","},
 				{Type: token.INT_LITERAL, Lexeme: "10"},
 				{Type: token.CLOSE_PAREN, Lexeme: ")"},
-				{Type: token.SEMICOLON, Lexeme: ";"},
 				eof,
 			},
 			isLet:        true,
@@ -629,7 +590,6 @@ func TestComprehensiveCallExpressions(t *testing.T) {
 				{Type: token.OPEN_PAREN, Lexeme: "("},
 				{Type: token.CLOSE_PAREN, Lexeme: ")"},
 				{Type: token.CLOSE_PAREN, Lexeme: ")"},
-				{Type: token.SEMICOLON, Lexeme: ";"},
 				eof,
 			},
 			isLet:        false,
@@ -684,5 +644,62 @@ func TestComprehensiveCallExpressions(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+// ============================================================
+// Control Flow Tests (If / Else / Blocks)
+// ============================================================
+
+func TestIfElseExpression(t *testing.T) {
+	// if (x < y) { x } else { y }
+	tokens := []token.Token{
+		{Type: token.IF, Lexeme: "if"},
+		{Type: token.OPEN_PAREN, Lexeme: "("},
+		{Type: token.IDENTIFIER, Lexeme: "x"},
+		{Type: token.LESS, Lexeme: "<"},
+		{Type: token.IDENTIFIER, Lexeme: "y"},
+		{Type: token.CLOSE_PAREN, Lexeme: ")"},
+		{Type: token.OPEN_BRACE, Lexeme: "{"},
+		{Type: token.IDENTIFIER, Lexeme: "x"},
+		{Type: token.CLOSE_BRACE, Lexeme: "}"},
+		{Type: token.ELSE, Lexeme: "else"},
+		{Type: token.OPEN_BRACE, Lexeme: "{"},
+		{Type: token.IDENTIFIER, Lexeme: "y"},
+		{Type: token.CLOSE_BRACE, Lexeme: "}"},
+		eof,
+	}
+
+	p, program := makeProgram(tokens)
+	checkParserErrors(t, p)
+	checkStatementCount(t, program, 1)
+
+	// The if/else should be wrapped in an ExpressionStatement
+	stmt, ok := program.Statements[0].(*ast.ExpressionStatement)
+	if !ok {
+		t.Fatalf("expected *ast.ExpressionStatement, got %T", program.Statements[0])
+	}
+
+	exp, ok := stmt.Expression.(*ast.IfExpression)
+	if !ok {
+		t.Fatalf("expected stmt.Expression to be *ast.IfExpression, got %T", stmt.Expression)
+	}
+
+	// Check condition parsing
+	if exp.Condition == nil {
+		t.Fatalf("expected condition, got nil")
+	}
+
+	// Check Consequence Block { x }
+	if len(exp.Consequence.Statements) != 1 {
+		t.Errorf("consequence is not 1 statement. got=%d\n", len(exp.Consequence.Statements))
+	}
+
+	// Check Alternative Block { y }
+	if exp.Alternative == nil {
+		t.Fatalf("expected alternative block, got nil")
+	}
+	if len(exp.Alternative.Statements) != 1 {
+		t.Errorf("alternative is not 1 statement. got=%d\n", len(exp.Alternative.Statements))
 	}
 }

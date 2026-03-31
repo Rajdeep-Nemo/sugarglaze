@@ -1,7 +1,7 @@
 package lexer
 
 import (
-	"pluesi/internal/token"
+	"glaze/internal/token"
 	"unicode"
 )
 
@@ -310,8 +310,6 @@ func (s *Scanner) ScanToken() token.Token {
 		return s.createToken(token.COMMA)
 	case ':':
 		return s.createToken(token.COLON)
-	case ';':
-		return s.createToken(token.SEMICOLON)
 	case '?':
 		return s.createToken(token.QUESTION)
 

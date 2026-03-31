@@ -2,8 +2,8 @@ package evaluator
 
 import (
 	"fmt"
-	"pluesi/internal/ast"
-	"pluesi/internal/object"
+	"glaze/internal/ast"
+	"glaze/internal/object"
 )
 
 // Optimization: We only ever need two boolean objects in memory!
@@ -64,12 +64,28 @@ func Eval(node ast.Node, env *object.Environment) object.Object {
 
 	// VARIABLES & IDENTIFIERS
 	case *ast.LetStatement:
-		val := Eval(node.Value, env)
-		if isError(val) {
-			return val
+		var val object.Object
+		var expectedType string
+		if node.TypeHint != nil {
+			expectedType = node.TypeHint.Name
 		}
-		// Save it to the environment as mutable (isConst = false)
-		env.Define(node.Name.Value, val, false)
+
+		if node.Value != nil {
+			val = Eval(node.Value, env)
+			if isError(val) {
+				return val
+			}
+			if expectedType != "" && string(val.Type()) != expectedType {
+				return newError("type mismatch: variable '%s' declared as '%s' but assigned '%s'", 
+					node.Name.Value, expectedType, val.Type())
+			}
+			if expectedType == "" {
+				expectedType = string(val.Type())
+			}
+		} else {
+			val = &object.Nil{} 
+		}
+		env.Define(node.Name.Value, val, false, expectedType)
 		return &object.Nil{}
 
 	case *ast.ConstStatement:
@@ -77,61 +93,61 @@ func Eval(node ast.Node, env *object.Environment) object.Object {
 		if isError(val) {
 			return val
 		}
-		// Save it to the environment as IMMUTABLE (isConst = true)
-		env.Define(node.Name.Value, val, true)
+
+		expectedType := ""
+		if node.TypeHint != nil {
+			expectedType = node.TypeHint.Name
+			if string(val.Type()) != expectedType {
+				return newError("type mismatch: const '%s' declared as '%s' but assigned '%s'", 
+					node.Name.Value, expectedType, val.Type())
+			}
+		} else {
+			expectedType = string(val.Type())
+		}
+
+		env.Define(node.Name.Value, val, true, expectedType)
 		return &object.Nil{}
 
 	case *ast.AssignStatement:
-		// 1. Evaluate the right side of the equals sign (e.g., x + y)
 		val := Eval(node.Value, env)
 		if isError(val) {
 			return val
 		}
 
-		// 2. If it is a standard "=" assignment
 		if node.Operator == ast.Assign {
 			result := env.Assign(node.Target.Value, val)
-			// env.Assign returns an Error object if the variable doesn't exist or is a const!
 			if isError(result) {
 				return result
 			}
 			return &object.Nil{}
 		}
 
-		// 3. Handle compound assignments like +=, -=, *=, /=
 		currentRecord, exists := env.Get(node.Target.Value)
 		if !exists {
 			return newError("cannot assign to undefined variable '%s'", node.Target.Value)
 		}
 
-		// Map the AssignOperator to a standard math operator
 		var opStr string
 		switch node.Operator {
-		case ast.PlusAssign:
-			opStr = "+"
-		case ast.MinusAssign:
-			opStr = "-"
-		case ast.StarAssign:
-			opStr = "*"
-		case ast.SlashAssign:
-			opStr = "/"
-		case ast.PercentAssign:
-			opStr = "%"
+		case ast.PlusAssign: opStr = "+"
+		case ast.MinusAssign: opStr = "-"
+		case ast.StarAssign: opStr = "*"
+		case ast.SlashAssign: opStr = "/"
+		case ast.PercentAssign: opStr = "%"
 		}
 
-		// Reuse your existing math evaluator!
 		newVal := evalInfixExpression(opStr, currentRecord.Value, val)
 		if isError(newVal) {
 			return newVal
 		}
 
-		// Save the newly calculated value back to memory
 		result := env.Assign(node.Target.Value, newVal)
 		if isError(result) {
 			return result
 		}
 
 		return &object.Nil{}
+
 	case *ast.Identifier:
 		return evalIdentifier(node, env)
 
@@ -161,7 +177,7 @@ func Eval(node ast.Node, env *object.Environment) object.Object {
 
 	return nil
 }
-
+	
 // Evaluates a list of statements in the main program
 func evalProgram(program *ast.Program, env *object.Environment) object.Object {
 	var result object.Object

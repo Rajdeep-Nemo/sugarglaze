@@ -1,0 +1,2 @@
+const x:i16 = 12
+println(x)
