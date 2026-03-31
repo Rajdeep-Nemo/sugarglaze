@@ -4,42 +4,31 @@ import (
 	"fmt"
 	"glaze/internal/ast"
 	"glaze/internal/object"
+	"math"
 )
 
-// Optimization: We only ever need two boolean objects in memory!
-var (
-	TRUE  = &object.Boolean{Value: true}
-	FALSE = &object.Boolean{Value: false}
-)
-
-// Eval is the core recursive function that walks the AST
+// Recursively traverses and evaluates an Abstract Syntax Tree (AST) node into a runtime object
 func Eval(node ast.Node, env *object.Environment) object.Object {
 	switch node := node.(type) {
 
 	// STATEMENTS
 	case *ast.Program:
 		return evalProgram(node, env)
-
 	case *ast.ExpressionStatement:
 		return Eval(node.Expression, env)
-
-	// LITERALS
 	case *ast.IntegerLiteral:
-		return &object.Integer{Value: int64(node.Value)}
-
+		if node.Value > math.MaxInt32 {
+			return &object.Int64{Value: int64(node.Value)}
+		}
+		return &object.Int32{Value: int32(node.Value)}
 	case *ast.FloatLiteral:
-		return &object.Float{Value: node.Value}
-
+		return &object.Float32{Value: float32(node.Value)}
 	case *ast.StringLiteral:
 		return &object.String{Value: node.Value}
-
 	case *ast.CharLiteral:
-		// We store chars as single-character strings for simplicity
 		return &object.String{Value: string(node.Value)}
-
 	case *ast.BoolLiteral:
 		return nativeBoolToBooleanObject(node.Value)
-
 	case *ast.NilLiteral:
 		return &object.Nil{}
 
@@ -70,22 +59,25 @@ func Eval(node ast.Node, env *object.Environment) object.Object {
 			expectedType = node.TypeHint.Name
 		}
 
+		isInit := false
 		if node.Value != nil {
 			val = Eval(node.Value, env)
 			if isError(val) {
 				return val
 			}
-			if expectedType != "" && string(val.Type()) != expectedType {
-				return newError("type mismatch: variable '%s' declared as '%s' but assigned '%s'", 
-					node.Name.Value, expectedType, val.Type())
-			}
-			if expectedType == "" {
+			if expectedType != "" {
+				val = enforceType(val, expectedType)
+				if isError(val) {
+					return val
+				}
+			} else {
 				expectedType = string(val.Type())
 			}
+			isInit = true
 		} else {
-			val = &object.Nil{} 
+			val = &object.Nil{}
 		}
-		env.Define(node.Name.Value, val, false, expectedType)
+		env.Define(node.Name.Value, val, false, expectedType, isInit)
 		return &object.Nil{}
 
 	case *ast.ConstStatement:
@@ -93,19 +85,17 @@ func Eval(node ast.Node, env *object.Environment) object.Object {
 		if isError(val) {
 			return val
 		}
-
 		expectedType := ""
 		if node.TypeHint != nil {
 			expectedType = node.TypeHint.Name
-			if string(val.Type()) != expectedType {
-				return newError("type mismatch: const '%s' declared as '%s' but assigned '%s'", 
-					node.Name.Value, expectedType, val.Type())
+			val = enforceType(val, expectedType)
+			if isError(val) {
+				return val
 			}
 		} else {
 			expectedType = string(val.Type())
 		}
-
-		env.Define(node.Name.Value, val, true, expectedType)
+		env.Define(node.Name.Value, val, true, expectedType, true)
 		return &object.Nil{}
 
 	case *ast.AssignStatement:
@@ -129,11 +119,16 @@ func Eval(node ast.Node, env *object.Environment) object.Object {
 
 		var opStr string
 		switch node.Operator {
-		case ast.PlusAssign: opStr = "+"
-		case ast.MinusAssign: opStr = "-"
-		case ast.StarAssign: opStr = "*"
-		case ast.SlashAssign: opStr = "/"
-		case ast.PercentAssign: opStr = "%"
+		case ast.PlusAssign:
+			opStr = "+"
+		case ast.MinusAssign:
+			opStr = "-"
+		case ast.StarAssign:
+			opStr = "*"
+		case ast.SlashAssign:
+			opStr = "/"
+		case ast.PercentAssign:
+			opStr = "%"
 		}
 
 		newVal := evalInfixExpression(opStr, currentRecord.Value, val)
@@ -177,8 +172,106 @@ func Eval(node ast.Node, env *object.Environment) object.Object {
 
 	return nil
 }
-	
-// Evaluates a list of statements in the main program
+
+// Ensures an object matches a target type by performing implicit casting or returning out-of-bounds errors
+func enforceType(obj object.Object, targetType string) object.Object {
+	if string(obj.Type()) == targetType {
+		return obj
+	}
+
+	var floatVal float64
+	var intVal int64
+	var isFloat, isInt bool
+
+	switch v := obj.(type) {
+	case *object.Int8:
+		intVal, isInt = int64(v.Value), true
+	case *object.Int16:
+		intVal, isInt = int64(v.Value), true
+	case *object.Int32:
+		intVal, isInt = int64(v.Value), true
+	case *object.Int64:
+		intVal, isInt = v.Value, true
+	case *object.Uint8:
+		intVal, isInt = int64(v.Value), true
+	case *object.Uint16:
+		intVal, isInt = int64(v.Value), true
+	case *object.Uint32:
+		intVal, isInt = int64(v.Value), true
+	case *object.Uint64:
+		if v.Value > math.MaxInt64 {
+			return newError("value out of bounds for casting")
+		}
+		intVal, isInt = int64(v.Value), true
+	case *object.Float32:
+		floatVal, isFloat = float64(v.Value), true
+	case *object.Float64:
+		floatVal, isFloat = v.Value, true
+	default:
+		return newError("cannot cast %s to %s", obj.Type(), targetType)
+	}
+
+	if isInt {
+		switch targetType {
+		case object.I8_OBJ:
+			if intVal < math.MinInt8 || intVal > math.MaxInt8 {
+				return newError("value %d out of bounds for i8", intVal)
+			}
+			return &object.Int8{Value: int8(intVal)}
+		case object.I16_OBJ:
+			if intVal < math.MinInt16 || intVal > math.MaxInt16 {
+				return newError("value %d out of bounds for i16", intVal)
+			}
+			return &object.Int16{Value: int16(intVal)}
+		case object.I32_OBJ:
+			if intVal < math.MinInt32 || intVal > math.MaxInt32 {
+				return newError("value %d out of bounds for i32", intVal)
+			}
+			return &object.Int32{Value: int32(intVal)}
+		case object.I64_OBJ:
+			return &object.Int64{Value: intVal}
+		case object.U8_OBJ:
+			if intVal < 0 || intVal > math.MaxUint8 {
+				return newError("value %d out of bounds for u8", intVal)
+			}
+			return &object.Uint8{Value: uint8(intVal)}
+		case object.U16_OBJ:
+			if intVal < 0 || intVal > math.MaxUint16 {
+				return newError("value %d out of bounds for u16", intVal)
+			}
+			return &object.Uint16{Value: uint16(intVal)}
+		case object.U32_OBJ:
+			if intVal < 0 || intVal > math.MaxUint32 {
+				return newError("value %d out of bounds for u32", intVal)
+			}
+			return &object.Uint32{Value: uint32(intVal)}
+		case object.U64_OBJ:
+			if intVal < 0 {
+				return newError("value %d out of bounds for u64", intVal)
+			}
+			return &object.Uint64{Value: uint64(intVal)}
+		case object.F32_OBJ:
+			return &object.Float32{Value: float32(intVal)}
+		case object.F64_OBJ:
+			return &object.Float64{Value: float64(intVal)}
+		}
+	} else if isFloat {
+		switch targetType {
+		case object.F32_OBJ:
+			if floatVal < -math.MaxFloat32 || floatVal > math.MaxFloat32 {
+				return newError("value out of bounds for f32")
+			}
+			return &object.Float32{Value: float32(floatVal)}
+		case object.F64_OBJ:
+			return &object.Float64{Value: floatVal}
+		default:
+			return newError("implicit down-casting from float to int not allowed")
+		}
+	}
+	return newError("type mismatch: cannot assign '%s' to '%s'", obj.Type(), targetType)
+}
+
+// Evaluates a sequence of statements forming a program, bubbling up errors to halt execution
 func evalProgram(program *ast.Program, env *object.Environment) object.Object {
 	var result object.Object
 
@@ -194,7 +287,13 @@ func evalProgram(program *ast.Program, env *object.Environment) object.Object {
 	return result
 }
 
-// Prevents us from creating duplicate boolean objects in memory
+// Two boolean objects to represent true and false values
+var (
+	TRUE  = &object.Boolean{Value: true}
+	FALSE = &object.Boolean{Value: false}
+)
+
+// Converts a native Go boolean into the interpreter's singleton TRUE or FALSE object
 func nativeBoolToBooleanObject(input bool) *object.Boolean {
 	if input {
 		return TRUE
@@ -202,12 +301,12 @@ func nativeBoolToBooleanObject(input bool) *object.Boolean {
 	return FALSE
 }
 
-// Helper function to easily throw formatted errors
+// Constructs and returns a formatted runtime error object
 func newError(format string, a ...interface{}) *object.Error {
 	return &object.Error{Message: fmt.Sprintf(format, a...)}
 }
 
-// Helper function to check if an object is an error
+// Checks whether a given evaluated object is an error
 func isError(obj object.Object) bool {
 	if obj != nil {
 		return obj.Type() == object.ERROR_OBJ
@@ -215,7 +314,7 @@ func isError(obj object.Object) bool {
 	return false
 }
 
-// Evaluates prefix expressions like !true or -5
+// Evaluates prefix expressions by delegating to specific functions for operators like ! or -
 func evalPrefixExpression(operator string, right object.Object) object.Object {
 	switch operator {
 	case "!":
@@ -227,7 +326,7 @@ func evalPrefixExpression(operator string, right object.Object) object.Object {
 	}
 }
 
-// Evaluate the bang operator (!) for booleans and nil
+// Evaluates the logical NOT (!) operator by returning the opposite of an object's truthiness
 func evalBangOperatorExpression(right object.Object) object.Object {
 	switch right {
 	case TRUE:
@@ -241,69 +340,92 @@ func evalBangOperatorExpression(right object.Object) object.Object {
 	}
 }
 
-// Evaluates negative numbers
+// Evaluates the arithmetic negation (-) operator for integer and float objects
 func evalMinusPrefixOperatorExpression(right object.Object) object.Object {
-	if right.Type() != object.INTEGER_OBJ && right.Type() != object.FLOAT_OBJ {
+	switch obj := right.(type) {
+	case *object.Int8:
+		return &object.Int8{Value: -obj.Value}
+	case *object.Int16:
+		return &object.Int16{Value: -obj.Value}
+	case *object.Int32:
+		return &object.Int32{Value: -obj.Value}
+	case *object.Int64:
+		return &object.Int64{Value: -obj.Value}
+	case *object.Float32:
+		return &object.Float32{Value: -obj.Value}
+	case *object.Float64:
+		return &object.Float64{Value: -obj.Value}
+	case *object.Uint8, *object.Uint16, *object.Uint32, *object.Uint64:
+		return newError("cannot negate unsigned integer type %s", right.Type())
+	default:
 		return newError("unknown operator: -%s", right.Type())
 	}
-
-	if right.Type() == object.INTEGER_OBJ {
-		value := right.(*object.Integer).Value
-		return &object.Integer{Value: -value}
-	}
-
-	value := right.(*object.Float).Value
-	return &object.Float{Value: -value}
 }
 
-// Evaluates infix expressions like 5 + 10 or "Hello " + "World"
+// Routes binary expressions to their specific evaluation logic based on operand types
 func evalInfixExpression(operator string, left, right object.Object) object.Object {
 	switch {
-	// Integer Math
-	case left.Type() == object.INTEGER_OBJ && right.Type() == object.INTEGER_OBJ:
-		return evalIntegerInfixExpression(operator, left, right)
-
-	// String Concatenation (e.g., "Hello " + "World")
 	case left.Type() == object.STRING_OBJ && right.Type() == object.STRING_OBJ:
 		return evalStringInfixExpression(operator, left, right)
-
-	// Boolean Equality (e.g., true == false)
-	case operator == "==":
-		return nativeBoolToBooleanObject(left == right) // Pointer comparison works because of our TRUE/FALSE singletons
-	case operator == "!=":
+	case operator == "==" && left.Type() == object.BOOL_OBJ && right.Type() == object.BOOL_OBJ:
+		return nativeBoolToBooleanObject(left == right)
+	case operator == "!=" && left.Type() == object.BOOL_OBJ && right.Type() == object.BOOL_OBJ:
 		return nativeBoolToBooleanObject(left != right)
-
-	// Type Mismatches
 	case left.Type() != right.Type():
 		return newError("type mismatch: %s %s %s", left.Type(), operator, right.Type())
+	default:
+		return evalNumericInfixExpression(operator, left, right)
+	}
+}
 
+// Evaluates infix expressions for numeric types by performing the appropriate arithmetic or comparison operation
+func evalNumericInfixExpression(operator string, left, right object.Object) object.Object {
+	switch leftVal := left.(type) {
+	case *object.Int8:
+		return evalIntMath(operator, int64(leftVal.Value), int64(right.(*object.Int8).Value), object.I8_OBJ)
+	case *object.Int16:
+		return evalIntMath(operator, int64(leftVal.Value), int64(right.(*object.Int16).Value), object.I16_OBJ)
+	case *object.Int32:
+		return evalIntMath(operator, int64(leftVal.Value), int64(right.(*object.Int32).Value), object.I32_OBJ)
+	case *object.Int64:
+		return evalIntMath(operator, leftVal.Value, right.(*object.Int64).Value, object.I64_OBJ)
+	case *object.Uint8:
+		return evalUintMath(operator, uint64(leftVal.Value), uint64(right.(*object.Uint8).Value), object.U8_OBJ)
+	case *object.Uint16:
+		return evalUintMath(operator, uint64(leftVal.Value), uint64(right.(*object.Uint16).Value), object.U16_OBJ)
+	case *object.Uint32:
+		return evalUintMath(operator, uint64(leftVal.Value), uint64(right.(*object.Uint32).Value), object.U32_OBJ)
+	case *object.Uint64:
+		return evalUintMath(operator, leftVal.Value, right.(*object.Uint64).Value, object.U64_OBJ)
+	case *object.Float32:
+		return evalFloatMath(operator, float64(leftVal.Value), float64(right.(*object.Float32).Value), object.F32_OBJ)
+	case *object.Float64:
+		return evalFloatMath(operator, leftVal.Value, right.(*object.Float64).Value, object.F64_OBJ)
 	default:
 		return newError("unknown operator: %s %s %s", left.Type(), operator, right.Type())
 	}
 }
 
-// Evaluates infix expressions for integers (e.g., 5 + 10 or 20 > 15)
-func evalIntegerInfixExpression(operator string, left, right object.Object) object.Object {
-	leftVal := left.(*object.Integer).Value
-	rightVal := right.(*object.Integer).Value
-
+// Evaluates infix expressions for integer types, performing arithmetic and comparison operations
+func evalIntMath(operator string, leftVal, rightVal int64, targetType object.ObjectType) object.Object {
+	var result int64
 	switch operator {
 	case "+":
-		return &object.Integer{Value: leftVal + rightVal}
+		result = leftVal + rightVal
 	case "-":
-		return &object.Integer{Value: leftVal - rightVal}
+		result = leftVal - rightVal
 	case "*":
-		return &object.Integer{Value: leftVal * rightVal}
+		result = leftVal * rightVal
 	case "/":
 		if rightVal == 0 {
 			return newError("division by zero")
 		}
-		return &object.Integer{Value: leftVal / rightVal}
+		result = leftVal / rightVal
 	case "%":
 		if rightVal == 0 {
 			return newError("modulo by zero")
 		}
-		return &object.Integer{Value: leftVal % rightVal}
+		result = leftVal % rightVal
 	case "<":
 		return nativeBoolToBooleanObject(leftVal < rightVal)
 	case ">":
@@ -312,12 +434,114 @@ func evalIntegerInfixExpression(operator string, left, right object.Object) obje
 		return nativeBoolToBooleanObject(leftVal == rightVal)
 	case "!=":
 		return nativeBoolToBooleanObject(leftVal != rightVal)
+	case "<=":
+		return nativeBoolToBooleanObject(leftVal <= rightVal)
+	case ">=":
+		return nativeBoolToBooleanObject(leftVal >= rightVal)
 	default:
-		return newError("unknown operator: %s %s %s", left.Type(), operator, right.Type())
+		return newError("unknown operator: %s %s %s", targetType, operator, targetType)
 	}
+
+	switch targetType {
+	case object.I8_OBJ:
+		return &object.Int8{Value: int8(result)}
+	case object.I16_OBJ:
+		return &object.Int16{Value: int16(result)}
+	case object.I32_OBJ:
+		return &object.Int32{Value: int32(result)}
+	case object.I64_OBJ:
+		return &object.Int64{Value: result}
+	}
+	return newError("internal error during integer math")
 }
 
-// Handles string concatenation (e.g., "Hello " + "World")
+// Evaluates infix expressions for unsigned integer types, performing arithmetic and comparison operations
+func evalUintMath(operator string, leftVal, rightVal uint64, targetType object.ObjectType) object.Object {
+	var result uint64
+	switch operator {
+	case "+":
+		result = leftVal + rightVal
+	case "-":
+		result = leftVal - rightVal
+	case "*":
+		result = leftVal * rightVal
+	case "/":
+		if rightVal == 0 {
+			return newError("division by zero")
+		}
+		result = leftVal / rightVal
+	case "%":
+		if rightVal == 0 {
+			return newError("modulo by zero")
+		}
+		result = leftVal % rightVal
+	case "<":
+		return nativeBoolToBooleanObject(leftVal < rightVal)
+	case ">":
+		return nativeBoolToBooleanObject(leftVal > rightVal)
+	case "==":
+		return nativeBoolToBooleanObject(leftVal == rightVal)
+	case "!=":
+		return nativeBoolToBooleanObject(leftVal != rightVal)
+	case "<=":
+		return nativeBoolToBooleanObject(leftVal <= rightVal)
+	case ">=":
+		return nativeBoolToBooleanObject(leftVal >= rightVal)
+	default:
+		return newError("unknown operator: %s %s %s", targetType, operator, targetType)
+	}
+
+	switch targetType {
+	case object.U8_OBJ:
+		return &object.Uint8{Value: uint8(result)}
+	case object.U16_OBJ:
+		return &object.Uint16{Value: uint16(result)}
+	case object.U32_OBJ:
+		return &object.Uint32{Value: uint32(result)}
+	case object.U64_OBJ:
+		return &object.Uint64{Value: result}
+	}
+	return newError("internal error during unsigned integer math")
+}
+
+// Evaluates infix expressions for float types, performing arithmetic and comparison operations
+func evalFloatMath(operator string, leftVal, rightVal float64, targetType object.ObjectType) object.Object {
+	var result float64
+	switch operator {
+	case "+":
+		result = leftVal + rightVal
+	case "-":
+		result = leftVal - rightVal
+	case "*":
+		result = leftVal * rightVal
+	case "/":
+		result = leftVal / rightVal
+	case "<":
+		return nativeBoolToBooleanObject(leftVal < rightVal)
+	case ">":
+		return nativeBoolToBooleanObject(leftVal > rightVal)
+	case "==":
+		return nativeBoolToBooleanObject(leftVal == rightVal)
+	case "!=":
+		return nativeBoolToBooleanObject(leftVal != rightVal)
+	case "<=":
+		return nativeBoolToBooleanObject(leftVal <= rightVal)
+	case ">=":
+		return nativeBoolToBooleanObject(leftVal >= rightVal)
+	default:
+		return newError("unknown operator: %s %s %s", targetType, operator, targetType)
+	}
+
+	switch targetType {
+	case object.F32_OBJ:
+		return &object.Float32{Value: float32(result)}
+	case object.F64_OBJ:
+		return &object.Float64{Value: result}
+	}
+	return newError("internal error during float math")
+}
+
+// Performs string concatenation when the + operator is used with string objects
 func evalStringInfixExpression(operator string, left, right object.Object) object.Object {
 	if operator != "+" {
 		return newError("unknown operator: %s %s %s", left.Type(), operator, right.Type())
@@ -327,24 +551,22 @@ func evalStringInfixExpression(operator string, left, right object.Object) objec
 	return &object.String{Value: leftVal + rightVal}
 }
 
-// Evaluates identifiers by looking them up in the environment or built-in functions
+// Resolves an identifier by looking it up in the environment or built-in function registry
 func evalIdentifier(node *ast.Identifier, env *object.Environment) object.Object {
-	// 1. Check if the identifier is a variable in the current Environment scope
 	if record, ok := env.Get(node.Value); ok {
+		if !record.IsInitialized {
+			return newError("cannot access uninitialized variable '%s'", node.Value)
+		}
 		return record.Value
 	}
-
-	// 2. Check if the identifier is actually a Built-in Function (like "print" or "input")
 	if builtin, ok := builtins[node.Value]; ok {
 		return builtin
 	}
-
-	// 3. If it's in neither, the user is trying to use an undeclared variable!
 	return newError("identifier not found: %s", node.Value)
 }
 
 // --- Function Execution ---
-
+// Evaluates a list of expressions sequentially, returning early if any evaluation fails
 func evalExpressions(exps []ast.Expression, env *object.Environment) []object.Object {
 	var result []object.Object
 
@@ -359,6 +581,7 @@ func evalExpressions(exps []ast.Expression, env *object.Environment) []object.Ob
 	return result
 }
 
+// Executes a resolved function object using the provided arguments
 func applyFunction(fn object.Object, args []object.Object) object.Object {
 	switch fn := fn.(type) {
 	case *object.Builtin:
@@ -369,7 +592,7 @@ func applyFunction(fn object.Object, args []object.Object) object.Object {
 }
 
 // --- Control Flow ---
-
+// Evaluates a list of statements within a block, halting early if an error occurs
 func evalBlockStatement(block *ast.BlockStatement, env *object.Environment) object.Object {
 	var result object.Object
 
@@ -384,6 +607,7 @@ func evalBlockStatement(block *ast.BlockStatement, env *object.Environment) obje
 	return result
 }
 
+// Evaluates conditional logic and executes the corresponding block in a newly enclosed scope
 func evalIfExpression(ie *ast.IfExpression, env *object.Environment) object.Object {
 	condition := Eval(ie.Condition, env)
 	if isError(condition) {
@@ -403,6 +627,7 @@ func evalIfExpression(ie *ast.IfExpression, env *object.Environment) object.Obje
 	}
 }
 
+// Determines if an object is logically true or false for conditional evaluation
 func isTruthy(obj object.Object) bool {
 	switch obj {
 	case &object.Nil{}:

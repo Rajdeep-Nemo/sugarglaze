@@ -22,7 +22,7 @@ var builtins = map[string]*object.Builtin{
 
 			switch arg := args[0].(type) {
 			case *object.String:
-				return &object.Integer{Value: int64(len(arg.Value))}
+				return &object.Int64{Value: int64(len(arg.Value))}
 			default:
 				return &object.Error{
 					Message: fmt.Sprintf("argument to 'len' not supported, got %s", args[0].Type()),
