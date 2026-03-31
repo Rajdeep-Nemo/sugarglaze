@@ -29,7 +29,7 @@ func expectParserErrors(t *testing.T, p *Parser, count int) {
 // makeProgram builds a Parser from a token slice and returns the parsed Program.
 func makeProgram(tokens []token.Token) (*Parser, *ast.Program) {
 	p := New(tokens)
-	program := p.parseProgram()
+	program := p.ParseProgram()
 	return p, program
 }
 

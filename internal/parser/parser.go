@@ -71,7 +71,7 @@ func (p *Parser) expect(tt token.TokenType) (token.Token, bool) {
 }
 
 // Loops through the tokens and parse statements until the end of the file is reached
-func (p *Parser) parseProgram() *ast.Program {
+func (p *Parser) ParseProgram() *ast.Program {
 	program := &ast.Program{}
 	for !p.check(token.END_OF_FILE) {
 		stmt := p.parseStatement()
@@ -379,6 +379,7 @@ func (p *Parser) registerParseFns() {
 		token.BANG:           p.parsePrefixExpression,
 		token.MINUS:          p.parsePrefixExpression,
 		token.OPEN_PAREN:     p.parseGroupedExpression,
+		token.IF:             p.parseIfExpression,
 	}
 	// Infix functions
 	infixParseFns = map[token.TokenType]infixParseFn{
@@ -563,4 +564,67 @@ func (p *Parser) parseExpressionStatement() *ast.ExpressionStatement {
 	p.consumeSemicolon()
 
 	return stmt
+}
+
+// Parses a block of statements enclosed in { }
+func (p *Parser) parseBlockStatement() *ast.BlockStatement {
+	block := &ast.BlockStatement{Token: p.currentToken()}
+	block.Statements = []ast.Statement{}
+
+	p.advance() // Consume the opening '{'
+
+	// Loop until we hit a '}' or run out of tokens
+	for p.currentToken().Type != token.CLOSE_BRACE && p.currentToken().Type != token.END_OF_FILE {
+		stmt := p.parseStatement()
+		if stmt != nil {
+			block.Statements = append(block.Statements, stmt)
+		}
+	}
+
+	// Consume the '}'
+	p.expect(token.CLOSE_BRACE)
+
+	return block
+}
+
+// Parses an if/else expression
+func (p *Parser) parseIfExpression() ast.Expression {
+	expression := &ast.IfExpression{Token: p.currentToken()}
+
+	p.advance() // Move past the 'if' keyword
+
+	// Use YOUR expect method for the '('
+	if _, ok := p.expect(token.OPEN_PAREN); !ok {
+		return nil
+	}
+
+	// Parse the condition inside the parentheses
+	expression.Condition = p.parseExpression(LOWEST)
+
+	// Use YOUR expect method for the ')'
+	if _, ok := p.expect(token.CLOSE_PAREN); !ok {
+		return nil
+	}
+
+	// Use YOUR expect method for the '{' starting the block
+	if _, ok := p.expect(token.OPEN_BRACE); !ok {
+		return nil
+	}
+
+	// Parse the consequence block
+	expression.Consequence = p.parseBlockStatement()
+
+	// Check if the current token is now 'else'
+	if p.currentToken().Type == token.ELSE {
+		p.advance() // Move past 'else'
+
+		// Expect the '{' for the else block
+		if _, ok := p.expect(token.OPEN_BRACE); !ok {
+			return nil
+		}
+
+		expression.Alternative = p.parseBlockStatement()
+	}
+
+	return expression
 }
