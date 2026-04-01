@@ -11,3 +11,4 @@ Thanks to everyone who contributes to this project.
 ## Honored Contributors
 
 * [Rajdeep Nemo](https://github.com/Rajdeep-Nemo)
+* [Sujay Paul](https://github.com/EL-STRIX)
