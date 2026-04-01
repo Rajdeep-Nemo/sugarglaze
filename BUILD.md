@@ -18,7 +18,7 @@ cd sugarglaze
 
 ```bash
 # Build the project
-go build ./...
+go build ./cmd/glaze
 ```
 
 ## Run
