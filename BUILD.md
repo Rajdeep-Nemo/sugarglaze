@@ -10,8 +10,8 @@ This document explains how to build the project locally.
 ## Clone the Repository
 
 ```bash
-git clone https://github.com/Rajdeep-Nemo/pluesi
-cd pluesi
+git clone https://github.com/Rajdeep-Nemo/sugarglaze
+cd sugarglaze
 ```
 
 ## Build
@@ -25,7 +25,7 @@ go build ./...
 
 ```bash
 # Run the compiled binary
-./pluesi
+./glaze
 ```
 
 ## Tests
