@@ -2,8 +2,9 @@ package ast
 
 import (
 	"bytes"
-	"github.com/Rajdeep-Nemo/sugarglaze/internal/token"
 	"strings"
+
+	"github.com/Rajdeep-Nemo/sugarglaze/internal/token"
 )
 
 // Node is the base interface for all nodes in the tree

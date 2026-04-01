@@ -2,8 +2,9 @@
 package lexer
 
 import (
-	"github.com/Rajdeep-Nemo/sugarglaze/internal/token"
 	"testing"
+
+	"github.com/Rajdeep-Nemo/sugarglaze/internal/token"
 )
 
 // expectedToken is a small helper struct just for our tests
