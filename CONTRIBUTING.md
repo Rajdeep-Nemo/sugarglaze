@@ -2,6 +2,13 @@
 
 Thanks for taking the time to contribute.
 
+> ## Branching Strategy
+> To keep the project stable, we use two main branches:
+> - **`main`**: Contains stable, bug-free code that passes all tests.
+> - **`dev`**: Used for active development and testing.
+>
+> **To contribute:** please create your own branch starting from **`dev`**. Once your code is ready, open a Pull Request to merge your changes back into `dev`. Thank you for your contributions!
+
 ## Workflow
 
 * Clone → branch → commit → pull request
