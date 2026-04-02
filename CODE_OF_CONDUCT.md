@@ -1,25 +1,31 @@
 # Code of Conduct
 
-## Overview
+We are committed to maintaining a respectful, professional, and constructive environment for everyone involved in this project.
 
-Be respectful, professional, and constructive in all interactions.
+---
 
 ## Expected Behavior
 
-* Use clear and respectful language
-* Accept feedback gracefully
-* Focus on improving the project
+- Use clear, respectful, and inclusive language.
+- Accept feedback gracefully and engage in good faith.
+- Focus on what is best for the project and its contributors.
+
+---
 
 ## Unacceptable Behavior
 
-* Harassment, insults, or personal attacks
-* Discrimination of any kind
-* Trolling, spamming, or disruptive behavior
+- Harassment, insults, or personal attacks of any kind.
+- Discrimination based on identity, background, or experience level.
+- Trolling, spamming, or any behavior that disrupts collaboration.
+
+---
 
 ## Enforcement
 
-Maintainers may remove or reject contributions that violate this code of conduct.
+Maintainers reserve the right to remove, edit, or reject comments, commits, and contributions that violate this code of conduct.
+
+---
 
 ## Scope
 
-Applies to all project spaces (issues, pull requests, discussions).
+This code of conduct applies across all project spaces, including issues, pull requests, and discussions.
