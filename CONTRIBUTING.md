@@ -59,6 +59,7 @@ Use short, descriptive messages. Clearly describe what changed and why in the PR
 - Verify the project builds cleanly.
 - Avoid introducing new dependencies.
 - Clearly describe what changed and why in the PR.
+- Format the code by running `go fmt ./...` from main directory.
 
 ---
 
