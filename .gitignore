@@ -36,3 +36,5 @@ go.work.sum
  .vscode/extensions.json
 # Test file
 test
+.vscode/settings.json
+cmd/glaze/test
