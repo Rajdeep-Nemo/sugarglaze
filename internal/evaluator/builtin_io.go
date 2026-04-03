@@ -78,7 +78,7 @@ func formatOutput(args ...object.Object) (string, *object.Error) {
 func builtinPrint(args ...object.Object) object.Object {
 	output, err := formatOutput(args...)
 	if err != nil {
-		return err // Bubble up the type-mismatch error so the program crashes!
+		return err
 	}
 	fmt.Print(output)
 	return &object.Nil{}
