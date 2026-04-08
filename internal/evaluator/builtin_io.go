@@ -235,3 +235,34 @@ func MustParseU16(s string) uint16 {
 	}
 	return *v
 }
+
+// ParseU32 parses a string to a 32-bit unsigned integer.
+// Returns nil if parsing fails.
+func ParseU32(s string) *uint32 {
+	s = trim(s)
+	if s == "" {
+		return nil
+	}
+	v, err := strconv.ParseUint(s, 10, 32)
+	if err != nil {
+		return nil
+	}
+	val := uint32(v)
+	return &val
+}
+
+// MustParseU32 parses a string to a 32-bit unsigned integer.
+// Exits with an error message if parsing fails.
+func MustParseU32(s string) uint32 {
+	s = trim(s)
+	if s == "" {
+		fmt.Fprintln(os.Stderr, "Empty input.")
+		os.Exit(1)
+	}
+	v := ParseU32(s)
+	if v == nil {
+		fmt.Fprintf(os.Stderr, "Invalid input: '%s' is not a valid 32-bit unsigned integer.\n", s)
+		os.Exit(1)
+	}
+	return *v
+}
