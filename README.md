@@ -25,7 +25,7 @@ Sugarglaze is built around a single principle: simplicity. It is a custom langua
 
 ## Roadmap
 
-- [x] **Interpreter** — tree-walking interpreter (current phase)
+- [ ] **Interpreter** — tree-walking interpreter (current phase)
 - [ ] **Virtual Machine** — bytecode compiler and stack-based VM
 - [ ] **Compiled** — native code generation
 
