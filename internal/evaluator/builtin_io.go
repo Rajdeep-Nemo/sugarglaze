@@ -142,3 +142,33 @@ func MustParseBool(s string) bool {
 	}
 	return *v
 }
+
+// Parses a string to a single byte value.
+// Returns nil if parsing fails.
+func ParseChar(s string) *byte {
+	s = trim(s)
+	if len(s) == 0 {
+		return nil
+	}
+	if len(s) > 1 {
+		return nil
+	}
+	v := s[0]
+	return &v
+}
+
+// Parses a string to a single byte value.
+// Exits with an error message if parsing fails.
+func MustParseChar(s string) byte {
+	s = trim(s)
+	if len(s) == 0 {
+		fmt.Fprintf(os.Stderr, "Empty char literal.\n")
+		os.Exit(1)
+	}
+	if len(s) > 1 {
+		fmt.Fprintf(os.Stderr, "Multiple characters found: '%s'\n", s)
+		os.Exit(1)
+	}
+	v := ParseChar(s)
+	return *v
+}
