@@ -422,3 +422,63 @@ func MustParseI64(s string) int64 {
 	return *v
 }
 
+// ParseF32 parses a string to a 32-bit floating point.
+// Returns nil if parsing fails.
+func ParseF32(s string) *float32 {
+	s = trim(s)
+	if s == "" {
+		return nil
+	}
+	v, err := strconv.ParseFloat(s, 32)
+	if err != nil {
+		return nil
+	}
+	val := float32(v)
+	return &val
+}
+
+// MustParseF32 parses a string to a 32-bit floating point.
+// Exits with an error message if parsing fails.
+func MustParseF32(s string) float32 {
+	s = trim(s)
+	if s == "" {
+		fmt.Fprintln(os.Stderr, "Empty input.")
+		os.Exit(1)
+	}
+	v := ParseF32(s)
+	if v == nil {
+		fmt.Fprintf(os.Stderr, "Invalid input: '%s' is not a valid 32-bit floating point.\n", s)
+		os.Exit(1)
+	}
+	return *v
+}
+
+// ParseF64 parses a string to a 64-bit floating point.
+// Returns nil if parsing fails.
+func ParseF64(s string) *float64 {
+	s = trim(s)
+	if s == "" {
+		return nil
+	}
+	v, err := strconv.ParseFloat(s, 64)
+	if err != nil {
+		return nil
+	}
+	return &v
+}
+
+// MustParseF64 parses a string to a 64-bit floating point.
+// Exits with an error message if parsing fails.
+func MustParseF64(s string) float64 {
+	s = trim(s)
+	if s == "" {
+		fmt.Fprintln(os.Stderr, "Empty input.")
+		os.Exit(1)
+	}
+	v := ParseF64(s)
+	if v == nil {
+		fmt.Fprintf(os.Stderr, "Invalid input: '%s' is not a valid 64-bit floating point.\n", s)
+		os.Exit(1)
+	}
+	return *v
+}
