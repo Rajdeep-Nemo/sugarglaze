@@ -102,6 +102,23 @@ func trim(s string) string {
 	return strings.TrimSpace(s)
 }
 
+// builtinTrim wraps the native trim function for the evaluator
+func builtinTrim(args ...object.Object) object.Object {
+	if len(args) != 1 {
+		return &object.Error{
+			Message: fmt.Sprintf("wrong number of arguments for trim(). got=%d, want=1", len(args)),
+		}
+	}
+	strObj, ok := args[0].(*object.String)
+	if !ok {
+		return &object.Error{
+			Message: fmt.Sprintf("argument to trim() must be a string, got %s", args[0].Type()),
+		}
+	}
+	result := trim(strObj.Value)
+	return &object.String{Value: result}
+}
+
 // A shared buffered reader for os.Stdin.
 var reader = bufio.NewReader(os.Stdin)
 
