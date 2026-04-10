@@ -297,3 +297,128 @@ func MustParseU64(s string) uint64 {
 	}
 	return *v
 }
+
+// ParseI8 parses a string to an 8-bit signed integer.
+// Returns nil if parsing fails.
+func ParseI8(s string) *int8 {
+	s = trim(s)
+	if s == "" {
+		return nil
+	}
+	v, err := strconv.ParseInt(s, 10, 8)
+	if err != nil {
+		return nil
+	}
+	val := int8(v)
+	return &val
+}
+
+// MustParseI8 parses a string to an 8-bit signed integer.
+// Exits with an error message if parsing fails.
+func MustParseI8(s string) int8 {
+	s = trim(s)
+	if s == "" {
+		fmt.Fprintln(os.Stderr, "Empty input.")
+		os.Exit(1)
+	}
+	v := ParseI8(s)
+	if v == nil {
+		fmt.Fprintf(os.Stderr, "Invalid input: '%s' is not a valid 8-bit signed integer.\n", s)
+		os.Exit(1)
+	}
+	return *v
+}
+
+// ParseI16 parses a string to a 16-bit signed integer.
+// Returns nil if parsing fails.
+func ParseI16(s string) *int16 {
+	s = trim(s)
+	if s == "" {
+		return nil
+	}
+	v, err := strconv.ParseInt(s, 10, 16)
+	if err != nil {
+		return nil
+	}
+	val := int16(v)
+	return &val
+}
+
+// MustParseI16 parses a string to a 16-bit signed integer.
+// Exits with an error message if parsing fails.
+func MustParseI16(s string) int16 {
+	s = trim(s)
+	if s == "" {
+		fmt.Fprintln(os.Stderr, "Empty input.")
+		os.Exit(1)
+	}
+	v := ParseI16(s)
+	if v == nil {
+		fmt.Fprintf(os.Stderr, "Invalid input: '%s' is not a valid 16-bit signed integer.\n", s)
+		os.Exit(1)
+	}
+	return *v
+}
+
+// ParseI32 parses a string to a 32-bit signed integer.
+// Returns nil if parsing fails.
+func ParseI32(s string) *int32 {
+	s = trim(s)
+	if s == "" {
+		return nil
+	}
+	v, err := strconv.ParseInt(s, 10, 32)
+	if err != nil {
+		return nil
+	}
+	val := int32(v)
+	return &val
+}
+
+// MustParseI32 parses a string to a 32-bit signed integer.
+// Exits with an error message if parsing fails.
+func MustParseI32(s string) int32 {
+	s = trim(s)
+	if s == "" {
+		fmt.Fprintln(os.Stderr, "Empty input.")
+		os.Exit(1)
+	}
+	v := ParseI32(s)
+	if v == nil {
+		fmt.Fprintf(os.Stderr, "Invalid input: '%s' is not a valid 32-bit signed integer.\n", s)
+		os.Exit(1)
+	}
+	return *v
+}
+
+// ParseI64 parses a string to a 64-bit signed integer.
+// Returns nil if parsing fails.
+func ParseI64(s string) *int64 {
+	s = trim(s)
+	if s == "" {
+		return nil
+	}
+	v, err := strconv.ParseInt(s, 10, 64)
+	if err != nil {
+		return nil
+	}
+	val := int64(v)
+	return &val
+}
+
+// MustParseI64 parses a string to a 64-bit signed integer.
+// Exits with an error message if parsing fails.
+func MustParseI64(s string) int64 {
+	s = trim(s)
+	if s == "" {
+		fmt.Fprintln(os.Stderr, "Empty input.")
+		os.Exit(1)
+	}
+	v := ParseI64(s)
+	if v == nil {
+		fmt.Fprintf(os.Stderr, "Invalid input: '%s' is not a valid 64-bit signed integer.\n", s)
+		os.Exit(1)
+	}
+	return *v
+}
+
