@@ -13,7 +13,7 @@ var builtins = map[string]*object.Builtin{
 	"print":   {Fn: builtinPrint},
 	"println": {Fn: builtinPrintln},
 	// Input functions
-
+	"trim":  {Fn: builtinTrim},
 	// We can leave 'len' here for now, or you can move it to a builtin_string.go later!
 	"len": {
 		Fn: func(args ...object.Object) object.Object {
