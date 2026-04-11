@@ -17,6 +17,7 @@ const (
 	F64_OBJ     = "f64"
 	STRING_OBJ  = "string"
 	BOOL_OBJ    = "bool"
+	CHAR_OBJ    = "char"
 	NIL_OBJ     = "NIL"
 	ERROR_OBJ   = "error"
 	BUILTIN_OBJ = "builtin"
@@ -86,6 +87,11 @@ type String struct{ Value string }
 
 func (s *String) Type() ObjectType { return STRING_OBJ }
 func (s *String) Inspect() string  { return s.Value }
+
+type Char struct{ Value rune }
+
+func (c *Char) Type() ObjectType { return STRING_OBJ }
+func (c *Char) Inspect() string  { return string(c.Value) }
 
 type Error struct{ Message string }
 
