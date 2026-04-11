@@ -38,3 +38,4 @@ go.work.sum
 test
 .vscode/settings.json
 cmd/glaze/test
+TO-DO.txt
