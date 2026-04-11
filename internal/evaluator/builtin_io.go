@@ -135,6 +135,27 @@ func Input(prompt string) string {
 	return strings.TrimRight(line, "\r\n")
 }
 
+// builtinInput wraps the native Input function for the evaluator
+func builtinInput(args ...object.Object) object.Object {
+	if len(args) > 1 {
+		return &object.Error{
+			Message: fmt.Sprintf("wrong number of arguments for input(). got=%d, want=0 or 1", len(args)),
+		}
+	}
+	prompt := ""
+	if len(args) == 1 {
+		strObj, ok := args[0].(*object.String)
+		if !ok {
+			return &object.Error{
+				Message: fmt.Sprintf("argument to input() must be a string, got %s", args[0].Type()),
+			}
+		}
+		prompt = strObj.Value
+	}
+	result := Input(prompt)
+	return &object.String{Value: result}
+}
+
 // Parses a string to a boolean value.
 // Returns nil if parsing fails.
 func ParseBool(s string) *bool {

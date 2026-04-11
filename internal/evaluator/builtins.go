@@ -14,7 +14,8 @@ var builtins = map[string]*object.Builtin{
 	"println": {Fn: builtinPrintln},
 	// Input functions
 	"trim":  {Fn: builtinTrim},
-	// We can leave 'len' here for now, or you can move it to a builtin_string.go later!
+	"input": {Fn: builtinInput},
+	// Extra functions
 	"len": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
