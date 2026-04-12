@@ -1,0 +1,6 @@
+// `string` is treated same as array of char internally
+
+char test_str[] = "Hi"; //error, can not take string literal
+char new_str[2] = {'H' , 'i'}; //ok
+
+string str = "Hi"; //ok, can take string literal
