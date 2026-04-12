@@ -9,3 +9,10 @@ i32 c = 1678;
 
 // 64 bit signed integer type
 i64 d = -56479;
+
+print(a);
+print(b);
+print(c);
+print(d);
+
+

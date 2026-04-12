@@ -1,2 +1,4 @@
-mut bool a = true;
+bool a = true;
 a = false;
+
+print(a);

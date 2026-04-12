@@ -1,2 +1,4 @@
-mut char symbol = '@';
+char symbol = '@';
 symbol = '$';
+
+print(symbol);

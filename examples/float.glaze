@@ -3,3 +3,6 @@ f32 a = 23.456;
 
 // 64 bit floating type
 f64 b = 675.345;
+
+print(a);
+print(b);

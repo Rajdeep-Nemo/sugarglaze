@@ -5,7 +5,7 @@
 // array traversal
 i32 arr[3] = {10, 20, 30};
 for (i32 x in arr) {
-    print("{i32}\n", x);   // x is read-only
+    printf("{i32}\n", x);   // x is read-only
 }
 
 for (i32 x in arr) {
@@ -15,5 +15,5 @@ for (i32 x in arr) {
 // string traversal
 string str = "Hi";
 for (char c in str) {
-    print("{char}\n", c);  // c is read-only
+    printf("{char}\n", c);  // c is read-only
 }
