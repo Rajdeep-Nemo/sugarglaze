@@ -1,0 +1,18 @@
+// 8 bit signed integer type
+i8 a = 2;
+
+// 16 bit signed integer type
+i16 b = -178;
+
+// 32 bit signed integer type
+i32 c = 1678;
+
+// 64 bit signed integer type
+i64 d = -56479;
+
+print(a);
+print(b);
+print(c);
+print(d);
+
+

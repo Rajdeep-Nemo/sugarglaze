@@ -1,0 +1,19 @@
+// The `for-in` loop iterates only over arrays and strings.
+// Each element accessed in the loop is read-only by default.
+// To modify elements, explicit mutation syntax must be used.
+
+// array traversal
+i32 arr[3] = {10, 20, 30};
+for (i32 x in arr) {
+    printf("{i32}\n", x);   // x is read-only
+}
+
+for (i32 x in arr) {
+    x = 100;           // error, element is read-only
+}
+
+// string traversal
+string str = "Hi";
+for (char c in str) {
+    printf("{char}\n", c);  // c is read-only
+}

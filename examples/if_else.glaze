@@ -1,0 +1,12 @@
+i32 a = 5;
+i32 b = 7;
+
+if (a < b) {
+    print("a is smaller");
+}
+else if (b < a) {
+    print("b is smaller");
+}
+else {
+    print("both equal");
+}

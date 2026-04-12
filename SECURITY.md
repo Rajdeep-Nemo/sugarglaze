@@ -8,8 +8,11 @@ We take security seriously. If you discover a vulnerability, please follow the p
 
 **Do not open a public issue.** Instead, report it privately by opening a [GitHub Security Advisory](https://github.com/Rajdeep-Nemo/sugarglaze/security/advisories/new).
 
-Your report should include:
+Alternatively, you can reach us directly via email:
+- rajdeepnemo@gmail.com
+- sujaypaul892@gmail.com
 
+Your report should include:
 - A clear description of the vulnerability.
 - Steps to reproduce the issue.
 - The potential impact or attack scenario.

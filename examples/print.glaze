@@ -1,0 +1,11 @@
+// basic printing
+i32 i = 8;
+printf("{i32}\n", i);
+
+// explicit cast before printing
+f32 x = 2.324;
+printf("{f32:.2}\n", x);
+printf("{i32}\n", (i32)x);
+
+// literal braces
+print("This prints literal braces: \{ and \}\n");

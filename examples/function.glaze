@@ -1,0 +1,7 @@
+fn add(i32 x, i32 y) -> i32 {
+    return x+y ;
+}
+
+fn display(void) -> void {
+    print("hello, world!");
+}
