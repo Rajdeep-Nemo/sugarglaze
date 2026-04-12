@@ -1,0 +1,9 @@
+// declaration
+mut i32 a[..];
+a[0] = 10;
+a[1] = 20;
+
+// declaration + initialization
+mut i32 b[..] = {10 , 20};
+b[0] = 5;
+b[2] = 30;
